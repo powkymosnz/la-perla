@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import { box } from './geometry.js';
+import { batchStaticParts, box } from './geometry.js';
 
 export function createPlayer(scene, car) {
   const root = new THREE.Group();
@@ -8,6 +8,10 @@ export function createPlayer(scene, car) {
   box(root, 0xf2b47c, 0, 1.64, 0, .31, .35, .31, true);
   box(root, 0x332631, 0, 1.8, -.025, .326, .14, .335, true);
   box(root, 0x37a4a3, 0, 1.22, 0, .59, .54, .3, true);
+  box(root, 0xf0d5ad, 0, 1.4, .162, .15, .18, .035);
+  box(root, 0x25505b, 0, .99, .16, .57, .07, .035);
+  box(root, 0xb8a184, .14, 1.17, .17, .1, .13, .04);
+  box(root, 0xf2b47c, 0, 1.63, .18, .09, .1, .08);
   box(root, 0x303854, 0, .9, 0, .49, .21, .28, true);
   const limbs = [];
   for (const side of [-1, 1]) {
@@ -22,6 +26,8 @@ export function createPlayer(scene, car) {
     box(leg, 0xe8d5ba, 0, -.78, .05, .23, .18, .34, true);
     limbs.push({ arm, leg, side });
   }
+  // Keep arm and leg pivots independent of the baked torso and head.
+  batchStaticParts(root, root.children.filter(part => !part.isGroup));
   let driving = true;
   let facing = 0;
   let cameraHeading = 0;
@@ -44,7 +50,7 @@ export function createPlayer(scene, car) {
         }
       } else if (!driving && world.carjack(root.position, car)) {
         carjackTimer = 1.8;
-        root.position.set(car.root.position.x + 2.25, 0, car.root.position.z + .4);
+        root.position.set(car.root.position.x + Math.cos(car.heading) * 1.9, 0, car.root.position.z - Math.sin(car.heading) * 1.9);
       } else if (!driving && root.position.distanceTo(car.root.position) < 3.1) {
         driving = true;
       }
@@ -87,9 +93,20 @@ export function createPlayer(scene, car) {
 
   return {
     update,
+    reset(x, z, heading) {
+      driving = true;
+      root.visible = false;
+      carjackTimer = 0;
+      car.root.position.set(x, 0, z);
+      car.setHeading(heading);
+    },
+    get speed() { return driving ? car.speed : 0; },
+    get aim() { return facing; },
     get target() { return driving ? car.root.position : root.position; },
     get heading() { return driving ? car.heading : cameraHeading; },
     get driving() { return driving; },
     get carjacking() { return carjackTimer > 0; },
   };
 }
+
+// Day 5: entering the denser traffic still uses the established extraction timer.

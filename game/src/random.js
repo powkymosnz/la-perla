@@ -1,5 +1,5 @@
 // A small seeded random number generator (mulberry32): the same seed gives the same game,
-// which is what makes the screenshot scenes repeatable.
+// so the same streets and buildings appear on each visit.
 
 export function createRandom(seed) {
   let a = seed | 0;
@@ -10,3 +10,5 @@ export function createRandom(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+// Day 5: locally seeded scenery remains reproducible without any network assets.

@@ -1,4 +1,4 @@
-// Package LA PERLA and its local browser assets for the make.fun judge.
+// Copy the playable build and gameplay captures into the judge's output directory.
 //
 // Serve it locally with `node serve.ts`, then open http://localhost:8080.
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
@@ -32,3 +32,5 @@ writeFileSync(
     game_path_max_bytes: 1000,
   }),
 );
+
+// Day 5: package the living-city build and four fresh, unedited browser JPEG captures.

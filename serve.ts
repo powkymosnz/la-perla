@@ -1,5 +1,5 @@
 // A tiny static server for game/ (Node 22, standard library only), so an entry can be played
-// locally without a build step: `node serve.ts` serves game/ on http://localhost:8080.
+// locally without a build step at http://localhost:8080 using `node serve.ts`.
 // It sends the MIME types a browser game needs, refuses any path outside game/, and otherwise
 // does nothing clever: this is a development convenience, not a web server for the internet.
 import { createReadStream, statSync } from 'node:fs';
@@ -70,3 +70,5 @@ createServer((request, response) => {
 }).listen(port, '127.0.0.1', () => {
   console.log(`game/ is on http://localhost:${port}`);
 });
+
+// Day 5: short local browser tests use this same no-build static asset server.

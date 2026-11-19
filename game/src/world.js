@@ -1,77 +1,65 @@
 import * as THREE from '../vendor/three.module.min.js';
-import { buildCity } from './city.js';
+import { buildCity, LIMIT, STEP } from './city.js';
 import { buildCoast, SHORE, PIER_Z, PIER_END } from './coast.js';
-import { box, paint } from './geometry.js';
-
-const POLICE_BLUE = 0x3156b7;
-const trafficColors = [0xe6a34c, 0x3e9ca8, 0x976ab4, 0xdda6a0, 0x5e8dce];
-
-function vehicle(parent, color, police = false) {
-  const root = new THREE.Group();
-  box(root, color, 0, .62, 0, 1.85, .55, 3.7, true);
-  box(root, police ? 0x26324a : color, 0, .94, 0, 1.62, .42, 1.55, true);
-  box(root, 0x263044, 0, 1.12, -.2, 1.46, .42, 1.62, true);
-  if (police) {
-    box(root, 0xf2e8d0, 0, 1.43, 0, .58, .12, .24, true);
-    box(root, 0xf05f68, -.35, 1.58, 0, .25, .1, .16);
-    box(root, 0x5dc8e0, .35, 1.58, 0, .25, .1, .16);
-  }
-  parent.add(root);
-  return root;
-}
-
-function person(parent, color) {
-  const root = new THREE.Group();
-  box(root, color, 0, .85, 0, .28, .72, .22, true);
-  box(root, 0xe8b58e, 0, 1.42, 0, .25, .25, .25, true);
-  parent.add(root);
-  return root;
-}
+import { box, paint, texture } from './geometry.js';
+import { createPoliceCar } from './police-car.js';
+import { createTraffic } from './traffic.js';
+import { createCrowd } from './crowd.js';
+import { buildStreetLife } from './street-life.js';
 
 export function createWorld(scene) {
   const solids = buildCity(scene);
+  const solidGrid = new Map();
+  let solidQuery = 0;
+  function indexSolid(solid) {
+    solid.queryId = ++solidQuery;
+    for (let gx = Math.floor((solid.x - solid.w) / STEP); gx <= Math.floor((solid.x + solid.w) / STEP); gx++) {
+      for (let gz = Math.floor((solid.z - solid.d) / STEP); gz <= Math.floor((solid.z + solid.d) / STEP); gz++) {
+        const key = `${gx},${gz}`;
+        if (!solidGrid.has(key)) solidGrid.set(key, []);
+        solidGrid.get(key).push(solid);
+      }
+    }
+  }
+  solids.forEach(indexSolid);
   const animateCoast = buildCoast(scene);
-  const traffic = [];
-  const pedestrians = [];
+  const trafficSystem = createTraffic(scene);
+  const traffic = trafficSystem.items;
+  const marketCar = trafficSystem.marketCar;
+  const crowd = createCrowd(scene, blocked);
+  const pedestrians = crowd.items;
+  const lifeProps = buildStreetLife(scene, crowd.benches);
+  let focus = new THREE.Vector3(596, 0, -54);
+  let visibleCars = 0, visiblePeople = 0;
   const police = [];
   let helicopter = null;
   let spikeStrip = null;
   let roadblock = null;
   let wanted = 0;
   let heat = 0;
-  let heatClock = 0;
-  let wantedClock = 0;
-  let crimeFlash = 0;
-  let cash = 2450;
-  let lastCar;
 
-  function addTraffic(x, z, heading, index) {
-    const root = vehicle(scene, trafficColors[index % trafficColors.length]);
-    root.position.set(x, 0, z);
-    root.rotation.y = heading;
-    const driver = new THREE.Group();
-    box(driver, 0xe0b28c, 0, 1.13, .35, .38, .48, .28);
-    box(driver, 0x272939, 0, 1.47, .35, .3, .24, .3);
-    root.add(driver);
-    traffic.push({ root, color: trafficColors[index % trafficColors.length], heading, speed: 4.5 + (index % 3) * 1.6, flee: 0, wait: index % 4 === 0 ? 1 : 0 });
-  }
-  // Park the first traffic car beside the starting coupe.
-  addTraffic(598, -57, 0, 0);
-  traffic[0].wait = 12;
-  for (let i = 1; i < 11; i++) {
-    const road = [-500, -300, -100, 100, 300, 500][i % 6];
-    addTraffic(i % 2 ? road : 600 - (i * 37), i % 2 ? -520 + i * 78 : -260 + i * 82, i % 2 ? 0 : Math.PI / 2, i);
-  }
-  for (let i = 0; i < 18; i++) {
-    const root = person(scene, [0xf19a72, 0x68a9a9, 0xcda65e, 0xd7788b][i % 4]);
-    root.position.set(-470 + (i * 83) % 1040, 0, -470 + (i * 137) % 900);
-    pedestrians.push({ root, heading: (i % 4) * Math.PI / 2, speed: 1.1 + i % 3 * .35, flee: 0 });
-  }
+  let wantedClock = 0, unseen = 0, thefts = 0;
+  const lastKnownTarget = new THREE.Vector3();
+  let crimeFlash = 0;
+  let lastCar;
+  const garageSpot = new THREE.Vector3(530, 0, -300);
 
   function blocked(x, z, halfWidth, halfDepth = halfWidth, height = 0) {
     const onPier = x + halfWidth <= PIER_END && Math.abs(z - PIER_Z) + halfDepth < 6.5;
     if (x - halfWidth < -608 || Math.abs(z) + halfDepth > 608 || (x + halfWidth > SHORE && !onPier)) return true;
-    return solids.some(solid => height < solid.height && Math.abs(x - solid.x) < halfWidth + solid.w && Math.abs(z - solid.z) < halfDepth + solid.d);
+    // A building that straddles a grid boundary only needs to be tested once.
+    const queryId = ++solidQuery;
+    for (let gx = Math.floor((x - halfWidth) / STEP); gx <= Math.floor((x + halfWidth) / STEP); gx++) {
+      for (let gz = Math.floor((z - halfDepth) / STEP); gz <= Math.floor((z + halfDepth) / STEP); gz++) {
+        for (const solid of solidGrid.get(`${gx},${gz}`) ?? []) {
+          if (solid.queryId === queryId) continue;
+          solid.queryId = queryId;
+          if (height < solid.height && Math.abs(x - solid.x) < halfWidth + solid.w &&
+            Math.abs(z - solid.z) < halfDepth + solid.d) return true;
+        }
+      }
+    }
+    return false;
   }
   function move(position, dx, dz, halfWidth, halfDepth = halfWidth) {
     const hitX = blocked(position.x + dx, position.z, halfWidth, halfDepth);
@@ -101,41 +89,54 @@ export function createWorld(scene) {
     car.root.rotation.y = target.heading;
     car.setHeading?.(target.heading);
     car.setColor?.(target.color);
-    const driver = person(scene, 0xc98161);
-    driver.position.set(target.root.position.x - 2.4, 0, target.root.position.z);
-    pedestrians.push({ root: driver, heading: Math.PI / 2, speed: 2.7, flee: 5 });
+    // Driver extraction shares the bounded crowd pool, so repeated thefts cannot leak meshes.
+    const driver = crowd.add(target.root.position.x - 2.4, target.root.position.z, 'chat', Math.PI / 2);
+    if (driver) driver.flee = 5;
     car.setHeading?.(target.heading);
     target.root.visible = false;
     raiseWanted(2, 'CARJACKING');
-    cash += 120;
+    thefts++;
     heat = 0;
     return true;
   }
   function canCarjack(position) {
     return traffic.some(item => item.root.visible && item.root.position.distanceTo(position) <= 4.6);
   }
-  function spawnPolice() {
+  function spawnPolice(target) {
     while (police.length < Math.min(3, Math.max(1, wanted))) {
       const i = police.length;
-      const root = vehicle(scene, POLICE_BLUE, true);
-      const a = Math.PI + (i - 1) * .9;
-      root.position.set(lastCar.root.position.x + Math.sin(a) * (22 + i * 7), 0, lastCar.root.position.z + Math.cos(a) * (22 + i * 7));
-      police.push({ root, index: i, speed: 9 + i * 1.6, heading: a, distance: 0, pit: false });
+      const model = createPoliceCar(scene);
+      const root = model.root;
+      const x = road(target.x);
+      const z = road(target.z);
+      const offset = (z > target.z ? 1 : -1) * (22 + i * 8);
+      const heading = offset > 0 ? Math.PI : 0;
+      root.position.set(x, 0, THREE.MathUtils.clamp(z + offset, -LIMIT, LIMIT));
+      police.push({ root, model, speed: 16 + i * 2, heading, distance: Infinity, contact: 0 });
     }
   }
   function ensureHelicopter() {
     if (helicopter || wanted < 4) return;
     const root = new THREE.Group();
-    box(root, 0x303746, 0, 0, 0, 3.6, 1.1, 5.2, true);
-    box(root, 0x5b6b7f, 0, .75, 0, 2.2, .7, 2.2, true);
+    const fuselage = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), paint(0x303746));
+    fuselage.scale.set(1.75, .88, 2.6); fuselage.castShadow = true; root.add(fuselage);
+    const cockpit = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6), paint(0x5b8b9a));
+    cockpit.position.set(0, .26, 1.15); cockpit.scale.set(1.5, .7, 1.4); root.add(cockpit);
     const rotor = new THREE.Mesh(new THREE.BoxGeometry(10, .06, .18), paint(0xe8cfb5));
     rotor.position.y = 1.25;
     root.add(rotor);
-    root.position.set(lastCar.root.position.x + 4, 8, lastCar.root.position.z + 5);
+    box(rotor, 0xd5c3a8, 0, 0, 0, .18, .06, 10);
+    box(root, 0x436877, 0, .12, 2.55, 2.9, .8, .16, true);
+    box(root, 0x303746, 0, .1, -4.1, .48, .44, 4.5, true);
+    box(root, 0x435365, 0, .9, -6.1, .2, 1.8, 1.1, true);
+    for (const side of [-1, 1]) {
+      box(root, 0xb6b5b4, side * 1.35, -.95, 0, .15, .15, 5.5);
+      box(root, 0x303746, side * 1.35, -.55, 0, .12, .8, .12);
+    }
+    root.position.set(lastCar.root.position.x + 8, 10, lastCar.root.position.z + 28);
     scene.add(root);
-    const spotlight = new THREE.Mesh(new THREE.ConeGeometry(3.6, 16, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1bb, transparent: true, opacity: .19, depthWrite: false }));
-    spotlight.rotation.x = Math.PI;
-    spotlight.position.y = -8;
+    const spotlight = new THREE.Mesh(new THREE.ConeGeometry(4, 10, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1bb, transparent: true, opacity: .19, depthWrite: false }));
+    spotlight.position.y = -5;
     root.add(spotlight);
     helicopter = { root, rotor, spotlight };
   }
@@ -150,8 +151,11 @@ export function createWorld(scene) {
   function ensureRoadblock() {
     if (roadblock || wanted < 3) return;
     roadblock = new THREE.Group();
+    roadblock.userData.models = [];
     for (let i = -1; i <= 1; i++) {
-      const unit = vehicle(roadblock, POLICE_BLUE, true);
+      const model = createPoliceCar(roadblock);
+      roadblock.userData.models.push(model);
+      const unit = model.root;
       unit.position.set(i * 5, 0, 0);
       unit.rotation.y = Math.PI / 2;
     }
@@ -159,86 +163,175 @@ export function createWorld(scene) {
     roadblock.rotation.y = lastCar.heading;
     scene.add(roadblock);
   }
-  function updateTraffic(dt, player) {
-    for (const item of traffic) {
-      if (!item.root.visible) continue;
-      item.crash = Math.max(0, (item.crash || 0) - dt);
-      const speed = item.speed + (item.flee > 0 ? 8 : 0);
-      item.wait = Math.max(0, item.wait - dt);
-      if (item.wait <= 0 || item.flee > 0) {
-        item.root.position.x += Math.sin(item.heading) * speed * dt;
-        item.root.position.z += Math.cos(item.heading) * speed * dt;
-      }
-      if (item.root.position.x > 625) item.root.position.x = -590;
-      if (item.root.position.x < -625) item.root.position.x = 590;
-      if (item.root.position.z > 590) item.root.position.z = -590;
-      if (item.root.position.z < -590) item.root.position.z = 590;
-      item.flee = Math.max(0, item.flee - dt);
-      const distance = item.root.position.distanceTo(player.target);
-      if (player?.driving && distance < 3.8 && player.speed > 10 && item.crash <= 0) {
-        item.flee = 5; item.wait = 0; item.crash = 4;
-        raiseWanted(1, 'TRAFFIC COLLISION');
-      } else if (player?.driving && distance < 7 && player.speed > 10) { item.flee = 4; item.wait = 0; }
-      if (Math.random() < dt * .015 && item.flee <= 0) item.wait = 1 + Math.random() * 2.5;
-    }
-  }
   function update(dt, player, car) {
     lastCar = car;
-    updateTraffic(dt, player);
-    for (const ped of pedestrians) {
-      const speed = ped.speed * (ped.flee > 0 ? 3.1 : 1);
-      ped.root.position.x += Math.sin(ped.heading) * speed * dt;
-      ped.root.position.z += Math.cos(ped.heading) * speed * dt;
-      ped.flee = Math.max(0, ped.flee - dt);
-      if (player?.driving && ped.root.position.distanceTo(player.target) < 5 && player.speed > 12) ped.flee = 4;
-      if (ped.root.position.x > 590 || ped.root.position.x < -590) ped.heading = Math.PI - ped.heading;
-      if (ped.root.position.z > 590 || ped.root.position.z < -590) ped.heading = -ped.heading;
-    }
+    focus = player.target;
+    trafficSystem.update(dt, player, police, raiseWanted);
+    crowd.update(dt, player, wanted, move);
     if (wanted) {
       wantedClock += dt;
-      if (wanted < 5 && wantedClock > 4.5) { wanted++; wantedClock = 0; }
-      spawnPolice();
+      if (!unseen) lastKnownTarget.copy(player.target);
+      const chaseTarget = unseen > 0 ? lastKnownTarget : player.target;
+      spawnPolice(chaseTarget);
       for (const unit of police) {
-        const flank = unit.index - (police.length - 1) / 2;
-        const sideX = Math.cos(car.heading) * flank * 5;
-        const sideZ = -Math.sin(car.heading) * flank * 5;
-        const dx = car.root.position.x + sideX - Math.sin(car.heading) * 6 - unit.root.position.x;
-        const dz = car.root.position.z + sideZ - Math.cos(car.heading) * 6 - unit.root.position.z;
-        const distance = Math.hypot(dx, dz);
-        unit.distance = distance;
-        const targetHeading = Math.atan2(dx, dz);
-        const delta = Math.atan2(Math.sin(targetHeading - unit.heading), Math.cos(targetHeading - unit.heading));
-        unit.heading += delta * Math.min(1, dt * 3.2);
-        unit.pit = car.speed < 12 && distance < 8;
-        const pace = unit.pit ? 3.5 : unit.speed;
-        unit.root.position.x += Math.sin(unit.heading) * pace * dt;
-        unit.root.position.z += Math.cos(unit.heading) * pace * dt;
+        unit.contact = Math.max(0, unit.contact - dt);
+        const position = unit.root.position;
+        unit.distance = position.distanceTo(player.target);
+        const x = road(position.x), z = road(position.z);
+        const targetX = road(chaseTarget.x), targetZ = road(chaseTarget.z);
+        if (!unit.next || position.distanceTo(unit.next) < .2) {
+          if (unit.next) position.copy(unit.next);
+          const intersection = Math.abs(position.x - x) < .3 && Math.abs(position.z - z) < .3;
+          let nextX = x, nextZ = z;
+          if (intersection) {
+            if (targetX !== x) nextX += Math.sign(targetX - x) * STEP;
+            else if (targetZ !== z) nextZ += Math.sign(targetZ - z) * STEP;
+            else if (Math.abs(chaseTarget.x - x) > Math.abs(chaseTarget.z - z))
+              nextX = THREE.MathUtils.clamp(chaseTarget.x, -LIMIT, LIMIT);
+            else nextZ = THREE.MathUtils.clamp(chaseTarget.z, -LIMIT, LIMIT);
+          } else if (Math.abs(position.x - x) < 1) {
+            const edge = position.z < z ? z - STEP : z + STEP;
+            nextZ = targetZ === edge ? edge : z;
+            if (targetX === x && (chaseTarget.z - z) * (edge - chaseTarget.z) > 0) nextZ = THREE.MathUtils.clamp(chaseTarget.z, -LIMIT, LIMIT);
+          } else {
+            const edge = position.x < x ? x - STEP : x + STEP;
+            nextX = targetX === edge ? edge : x;
+            if (targetZ === z && (chaseTarget.x - x) * (edge - chaseTarget.x) > 0) nextX = THREE.MathUtils.clamp(chaseTarget.x, -LIMIT, LIMIT);
+          }
+          unit.next = new THREE.Vector3(nextX, 0, nextZ);
+        }
+        const delta = unit.next.clone().sub(position);
+        if (delta.lengthSq() > .02 && !unit.contact) {
+          const heading = Math.atan2(delta.x, delta.z);
+          const turn = Math.atan2(Math.sin(heading - unit.heading), Math.cos(heading - unit.heading));
+          unit.heading += turn * Math.min(1, dt * 9);
+          delta.clampLength(0, unit.speed * dt);
+          const next = position.clone().add(delta);
+          if (!blocked(next.x, next.z, 1.2)) position.copy(next);
+        }
         unit.root.rotation.y = unit.heading;
-        if (distance < 3.9 && car.speed > 4) car.bump?.(Math.sin(unit.heading) * dt * 8, Math.cos(unit.heading) * dt * 8);
+        unit.model.flash(performance.now() / 1000);
       }
+      for (let pass = 0; pass < 4; pass++) {
+        for (let i = 0; i < police.length; i++) {
+          const unit = police[i];
+          separate(unit, car, 5.3, dt);
+          for (let j = 0; j < i; j++) separate(unit, police[j], 5.15, dt);
+        }
+      }
+      const obscured = unit => {
+        if (unit.distance > (wanted >= 4 ? 35 : 45)) return true;
+        const from = unit.root.position;
+        for (let t = .12; t < .9; t += .12) {
+          if (blocked(from.x + (player.target.x - from.x) * t, from.z + (player.target.z - from.z) * t, .1, .1, 1.6)) return true;
+        }
+        return false;
+      };
+      let airSpotted = false;
+      if (helicopter) {
+        const from = helicopter.root.position;
+        airSpotted = Math.hypot(from.x - player.target.x, from.z - player.target.z) < 35;
+        for (let t = .12; airSpotted && t < .94; t += .12) {
+          if (blocked(from.x + (player.target.x - from.x) * t, from.z + (player.target.z - from.z) * t, .1, .1, from.y * (1 - t) + 1.2 * t)) airSpotted = false;
+        }
+      }
+      unseen = police.every(obscured) && !airSpotted ? unseen + dt : 0;
+      if (wantedClock > 25 && unseen === 0 && wanted < 5) { wanted++; wantedClock = 0; }
       ensureHelicopter(); ensureSpikes();
       ensureRoadblock();
+      roadblock?.updateMatrixWorld(true);
+      const parked = (roadblock?.userData.models ?? []).map(model => ({
+        model, root: { position: model.root.getWorldPosition(new THREE.Vector3()) },
+      }));
+      for (let pass = 0; pass < 5; pass++) {
+        for (let i = 0; i < parked.length; i++) {
+          const block = parked[i];
+          separate(block, car, 5.3, dt);
+          for (const unit of police) separate(unit, block, 5.15, dt);
+          for (let j = 0; j < i; j++) separate(block, parked[j], 5.15, dt);
+        }
+        for (const unit of police) separate(unit, car, 5.3, dt);
+      }
+      for (const { model, root } of parked) {
+        model.flash(performance.now() / 1000);
+        model.root.position.copy(roadblock.worldToLocal(root.position));
+      }
       if (helicopter) {
-        helicopter.root.position.lerp(new THREE.Vector3(car.root.position.x + 4, 8, car.root.position.z + 5), 1 - Math.exp(-dt));
+        helicopter.root.position.lerp(new THREE.Vector3(player.target.x + 8, 10, player.target.z + 28), 1 - Math.exp(-dt * .42));
         helicopter.rotor.rotation.y += dt * 12;
       }
       if (spikeStrip && car.root.position.distanceTo(spikeStrip.position) < 8) car.damageTires?.(dt);
-      if (wantedClock > 12 && police.every(unit => unit.distance > 48)) { wanted = 0; heat = Math.max(heat, 1); heatClock = 0; wantedClock = 0; }
-    }
-    if (!wanted && heat > 0) {
-      heatClock += dt;
-      if (heatClock > 5 && police.some(unit => unit.root.position.distanceTo(car.root.position) < 220)) {
-        wanted = 1;
-        wantedClock = 0;
-        heatClock = 0;
-      }
+      if (unseen > 4) { clearHeat(); heat = 1; }
     }
     crimeFlash = Math.max(0, crimeFlash - dt);
   }
+  function separate(unit, other, reach, dt) {
+    const a = unit.root.position, b = other.root.position;
+    const dx = b.x - a.x, dz = b.z - a.z;
+    const distance = Math.hypot(dx, dz);
+    if (distance >= reach) return;
+    const nx = distance > .001 ? dx / distance : 0;
+    const nz = distance > .001 ? dz / distance : 1;
+    const push = (reach - distance + .02) * .5;
+    const ax = a.x, az = a.z, bx = b.x, bz = b.z;
+    move(a, -nx * push, -nz * push, 1.2);
+    const ext = other.extents?.() ?? [1.2, 1.2];
+    move(b, nx * push, nz * push, ...ext);
+    if (Math.hypot(b.x - a.x, b.z - a.z) < reach) {
+      move(a, -nx * push, -nz * push, 1.2);
+      if (Math.hypot(b.x - a.x, b.z - a.z) < reach) move(b, nx * push, nz * push, ...ext);
+    }
+    unit.contact = .35;
+    if (other.bump && (bx !== b.x || bz !== b.z)) other.bump(nx * dt * 4, nz * dt * 4);
+    if (ax !== a.x || az !== a.z) unit.next = null;
+  }
+  function clearHeat() {
+    for (const unit of police) scene.remove(unit.root);
+    if (helicopter) scene.remove(helicopter.root);
+    if (roadblock) scene.remove(roadblock);
+    if (spikeStrip) scene.remove(spikeStrip);
+    helicopter = roadblock = spikeStrip = null;
+    police.length = 0;
+    heat = wanted = wantedClock = unseen = 0;
+  }
+  const garage = new THREE.Group();
+  garage.name = 'rosa-garage';
+  box(garage, 0x744e45, 0, 2, 0, 26, 4, 16, true);
+  box(garage, 0x292b3b, 0, 1.3, 8.1, 18, 2.6, .3, true);
+  box(garage, 0xe9bd81, 0, 4.1, 0, 28, .25, 18);
+  scene.add(garage);
+  garage.position.copy(garageSpot).z -= 14;
+  solids.push({ x: garage.position.x, z: garage.position.z, w: 13, d: 8, height: 4.25 });
+  indexSolid(solids[solids.length - 1]);
+  const signMap = texture(256, 48, ctx => {
+    ctx.fillStyle = '#292b3b'; ctx.fillRect(0, 0, 256, 48);
+    ctx.fillStyle = '#ffe0a2'; ctx.textAlign = 'center'; ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('ROSA · GARAJE', 128, 34);
+  });
+  const sign = new THREE.Mesh(new THREE.PlaneGeometry(17, 3.1), new THREE.MeshBasicMaterial({ map: signMap }));
+  sign.position.set(0, 3.1, 8.3);
+  garage.add(sign);
   return {
-    animate: animateCoast, update, blocked, move, carjack, canCarjack, raiseWanted,
+    animate(dt, camera) {
+      animateCoast(dt);
+      visibleCars = trafficSystem.draw(focus, camera);
+      visiblePeople = crowd.draw(focus, camera);
+    }, update, blocked, move, carjack, canCarjack, raiseWanted,
+    get population() { return { cars: traffic.length, pedestrians: pedestrians.length, visibleCars, visiblePeople,
+      carCap: trafficSystem.cap, pedestrianCap: crowd.cap, ...lifeProps }; },
     get wanted() { return wanted; }, get heat() { return heat; }, get crimeFlash() { return crimeFlash; },
-    get cash() { return cash; }, get police() { return police; }, get helicopter() { return helicopter; },
+    get thefts() { return thefts; }, get unseen() { return unseen; },
+get police() { return police; }, get helicopter() { return helicopter; },
     get spikes() { return spikeStrip; }, get traffic() { return traffic; }, get pedestrians() { return pedestrians; },
+    get garagePosition() { return garageSpot; }, nearGarage(position) { return position.distanceTo(garageSpot) < 22; },
+    resetMarketCar() {
+      marketCar.root.visible = true;
+      marketCar.root.position.set(521, 0, 94);
+      marketCar.wait = Infinity;
+      marketCar.flee = 0;
+    },
+    clearHeat,
   };
 }
+
+const road = value => THREE.MathUtils.clamp(Math.round(value / STEP) * STEP, -LIMIT, LIMIT);

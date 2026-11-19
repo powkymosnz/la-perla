@@ -5,18 +5,26 @@ export function createCamera() {
   const look = new THREE.Vector3();
   const desired = new THREE.Vector3();
   const focus = new THREE.Vector3();
+  const lastTarget = new THREE.Vector3();
   let heading = 0;
   let ready = false;
+  let lead = 0;
 
   function follow(dt, player, car, world) {
     const target = player.target;
+    // A job can teleport the player across districts between two frames.
+    if (ready && lastTarget.distanceToSquared(target) > 3600) ready = false;
+    lastTarget.copy(target);
     const delta = player.heading - heading;
-    heading += Math.atan2(Math.sin(delta), Math.cos(delta)) * (ready ? 1 - Math.exp(-6 * dt) : 1);
+    const speed01 = THREE.MathUtils.clamp(car.speed / 24, 0, 1);
+    const turnRate = 5.5 + speed01 * 2.5;
+    heading += Math.atan2(Math.sin(delta), Math.cos(delta)) * (ready ? 1 - Math.exp(-turnRate * dt) : 1);
     const fx = Math.sin(heading);
     const fz = Math.cos(heading);
-    const reach = player.driving ? 9.5 + car.speed * .065 : 5.3;
-    const height = player.driving ? 4.55 : 3.35;
-    const lead = player.driving ? 7.5 : 3;
+    const reach = player.driving ? 9.2 + car.speed * .075 : 5.3;
+    const height = player.driving ? 4.7 + speed01 * .25 : 3.35;
+    const leadTarget = player.driving ? 5.8 + speed01 * 4.2 : 3;
+    lead = ready ? lead + (leadTarget - lead) * (1 - Math.exp(-4.5 * dt)) : leadTarget;
     desired.set(target.x - fx * reach, height, target.z - fz * reach);
     focus.set(target.x + fx * lead, player.driving ? 1.55 : 1.75, target.z + fz * lead);
     for (let t = .2; t <= 1.01; t += .1) {
@@ -27,7 +35,7 @@ export function createCamera() {
       desired.z = THREE.MathUtils.lerp(target.z, desired.z, t - .12);
       break;
     }
-    const blend = ready ? 1 - Math.exp(-7 * dt) : 1;
+    const blend = ready ? 1 - Math.exp(-(player.driving ? 5.8 + speed01 * 1.2 : 7) * dt) : 1;
     camera.position.lerp(desired, blend);
     if (world.blocked(camera.position.x, camera.position.z, .28, .28, camera.position.y)) {
       camera.position.copy(desired);
@@ -39,3 +47,5 @@ export function createCamera() {
 
   return { camera, follow };
 }
+
+// Day 5: the resolved chase camera also bounds the ambient instance visibility pass.

@@ -102,3 +102,178 @@ top 10 ($38) if genuinely strong and playable. Deadline 24 Nov 22:00 WIB.
 ### Day 3
 
 Start with road-bound police pursuit, vehicle contact separation, and a city minimap.
+
+- 2026-11-19 — Day 3 recovery and completion (resume after VM restart):
+  - Re-read all eight external design references. Kept the established mission,
+    wanted/cash, police, minimap and speed HUD positions, with the Cartagena
+    case-file skin. Applied focused menus, short reduced-motion-aware transitions,
+    dialogue graphs, impact feedback, versioned saves and separate music/SFX buses.
+  - Fixed the interrupted job-start crash (assignment to a getter), the E input
+    conflict that prevented normal entry/exit, the unreachable garage operations,
+    stale profile references, incomplete heat cleanup and un-applied handling upgrades.
+    Personally revised every recovered source file, including all eight new modules.
+  - Police have black bodies, white doors/roofs, readable POLICE lettering, wheels,
+    glazed cabins and alternating emissive red/blue roof bars. Pursuit uses the actual
+    100-unit street pitch around 80-unit blocks; intersection turns stay on the grid.
+    Contact separates patrols, the player and parked roadblock cars, rather than
+    allowing bodies to overlap. Obstructed sightlines/distance start a search, and
+    repaint removes the pursuit models, helicopter, roadblocks, spikes and HEAT.
+  - The minimap shares city/coast dimensions: roads, 80-unit blocks, beach and shore,
+    pier, ferris wheel, traffic, patrols, helicopter, player and clamped job waypoint.
+    The compass shows relative bearing and distance. Reserved the fort, tower and
+    garage parcels so generic buildings no longer bury those landmarks.
+  - All eight case files are playable in sequence, with two route choices each:
+    First Fare (timed drive), Borrowed Wheels (actual theft followed by escape),
+    The Package (timed port delivery), Neon Derby (El Toro's time trial),
+    The Marina Job (cargo pickup then getaway), Air Support (helicopter evasion),
+    Roadblock (cross Vega's line), Last Boat Out (pier drive or lose heat/board on foot).
+    Intro and outro graphs branch, wait for player input and terminate; Rosa,
+    Vega, El Toro and Luz have dialogue/barks. Rewards cannot be farmed by replay.
+  - On-foot fists/pistol (1/2, F) have range/occlusion tests, impact sound, knockback,
+    decaying camera trauma and real-time hit-stop recovery. Assault/gunfire raise
+    wanted levels. E still handles car entry, exit and the visible driver extraction.
+  - Rosa's garage (G when nearby and stopped) offers repair ($250), repaint/HEAT
+    removal ($400), engine and handling upgrades ($800, three levels each).
+    Cash, paint, upgrades, completed cases and the current job checkpoint persist.
+  - Three manual slots and a separate autosave use one atomic localStorage bank
+    replacement, schema v2, a previous-bank backup, v1 migration and validation.
+    Continue, case files, pause, job completion/failure and retry screens are wired.
+    Manual slots never replace autosave. Storage errors produce a visible message.
+  - Three procedural WebAudio stations have different rhythms/scales/timbres,
+    musical-clock scheduling, randomized impact SFX, R switching, Luz text and a
+    dedicated dialogue duck bus. No downloaded audio, fonts, art or network assets.
+  - Batched immutable city geometry and enabled a lower-resolution, no-shadow
+    software-renderer fallback after recovering very slow browser frames on the VM.
+    Hardware rendering keeps shadows. Restarted the workspace's verified server
+    process between test phases; kept Playwright operations in short bursts.
+  - Browser play-test: drove First Fare end to end, received $500 and its outro;
+    then exited, stole the market car, escaped the two-star patrol and completed
+    Borrowed Wheels for $750. Bought repaint, engine, handling and repair; cash
+    went from $3,700 to $1,450 and HEAT cleared. Saved Slot 1 and reloaded via
+    Continue: two jobs, $1,450, paint and both upgrade levels survived.
+  - Additional browser checks: melee knocked the staged target back 1.25 units
+    and raised one star; pistol hit raised two. AudioContext was running; dialogue
+    reduced music duck gain to ~0.28. A deterministic browser pursuit probe measured
+    >=5.30 player/patrol separation, >=5.15 patrol/patrol separation, no embedded
+    patrols and zero off-grid deviation during a tested corner.
+  - node tests/day3.mjs passes all 16 mission completion routes, intro/outro graph
+    branches, timer failure, save round trips/migration/corruption backup, independent
+    slots and shared minimap geometry/symbol checks. Packaging with main.ts also ran
+    successfully using /tmp/la-perla-day3. Browser console had no game errors and all
+    recorded game requests were localhost assets.
+  - Captured Day 3 proof images (not the Day 4 final screenshot pass):
+    screenshots/1-start.jpg (Old Town fare/outro), 2-play.jpg (port fort delivery),
+    3-end.jpg (market driver extraction), 4-chase.jpg (glass towers, helicopter and
+    police). The latter district shots use explicit QA staging; the first two jobs
+    above were completed through normal keyboard input.
+  - No competition check, submission, push or Day 4 polish/finalization performed.
+  - Final browser confirmation: injected timer expiry opened The Package's failure
+    screen and Retry returned to its intro. Loading Slot 1 through the pause menu
+    restored $1,450, both completed jobs, teal paint and engine/handling level 1.
+    A moving roadblock-contact probe retained >=5.30 player/vehicle separation,
+    >=5.12 between all sampled police bodies and no embedded pursuing cars.
+    All four proof JPEGs are 1280x720 and below 105 KiB each. Left the ordinary
+    localhost URL on its title screen with Continue enabled.
+
+### Day 4
+
+- Built seeded facade atlases with framed and lit windows, colonial arches,
+  pastel walls, balconies, roof trims and parapets. The port has stone
+  battlements, cranes and stacked cargo. Market stalls add striped awnings and
+  fruit displays. Palms, lamps, benches and the pier with its rotating Ferris
+  wheel and upright gondolas dress the waterfront. Glazed towers use teal
+  trim and neon accents against the golden-hour sky.
+- Shaped the player coupe, marked patrol interceptors, taxi, compacts and vans
+  with tapered bodies, glazing, visible tires and separate lights. Added
+  independent arm and leg movement, varied outfits and hats for pedestrians.
+- Baked static parts into spatial batches and indexed collision checks by city
+  block. The chase camera damps by elapsed time and snaps after mission
+  relocations. Preserved the mission, wanted, cash, minimap, speed and police
+  HUD positions and information. All art and sound are generated locally.
+- Replayed the intro and drove in Playwright after the VM restart. The browser
+  reported zero game errors and requested only localhost files. Refreshed and
+  inspected all four 1280×720 gameplay JPEGs: First Fare in Old Town, Roadblock
+  at Port Fort, Borrowed Wheels on foot among market stalls, and Air Support
+  among the glass towers. The market proof uses staged traffic and pedestrian
+  positions in the running game. The chase JPEG decodes to its final marker.
+- Day 3 and Day 4 Node suites passed, covering mission routes and spawns, saves,
+  minimap geometry, driving, walking, four-star air support and chase camera
+  behavior at different frame rates.
+
+### Day 5 — Living city / v2 (2026-11-19)
+
+- Verified the clean submitted baseline on `submit-v1` at
+  `2e44f6832d788a5a053612be941e705016de2eb5`. Stayed on that branch and
+  quoted the existing make.fun beacon before the first source write. Read the
+  external game-ai, level-design and performance-optimization skills in place;
+  no skill or external art/audio asset was copied into the repository.
+- Replaced the 12 sparse civilians with a bounded population of 724 cars:
+  450 circulating and 274 parked in curb bays, using four procedural models
+  and nine paint colors. Closed lane loops advance one axis at each corner,
+  remain inside the street grid, and keep parking away from intersections.
+  A 5 Hz spatial-bucket sensor handles queues, nearby patrols and chase reactions.
+  The mission taxi remains stealable and is reset by Borrowed Wheels as before.
+- Added 1,292 initial pedestrians throughout the sidewalks, busy boulevards,
+  market, beach and plazas. Walkers animate arms, legs and attached shoes;
+  outfits, skin tones and hats vary. Chatting groups, seated bench occupants,
+  six fruit vendors and four articulated domino players are present in the
+  actual market. Nearby chase/fast-car perception interrupts activities with
+  fleeing. Extracted drivers share a hard-capped crowd pool rather than leaking
+  new meshes after repeated thefts.
+- Added 113 striped beach umbrellas with matching towels, sunbathers and
+  companions in two rows. The shared bay layout leaves the pier approach clear.
+  Nine vendor carts, additional occupied benches, market pennants/crates and
+  original illuminated billboards/signs add street activity: PERLA VIVA,
+  MERCADO SOL, LA PLAZA, BAHIA CLARA, COSTA DORADA, CLUB MAREA, CASA BRISA,
+  LUZ 101 and RITMO LOCAL. All geometry and textures are generated locally.
+- Static dressing uses spatial vertex-color/instance batches. Civilian model
+  templates are baked once; cars and articulated people use fixed instance
+  buffers, camera-frustum compaction and distance limits. Hardware visible
+  budgets are 104 cars / 180 people; SwiftShader budgets are 72 / 120.
+  Software rendering drops distant vehicle trim and caps view distance at 220.
+  Offscreen actors retain their simulation/theft state independently of culling.
+- Preserved the golden-hour lighting, district identities, original eight jobs,
+  police pursuit/separation/roadblock/helicopter/spikes, wanted/HEAT, player
+  handling, garage prices/upgrades, save schema, radio and every HUD information
+  field/position. Set the west glass tower back ten units after the new route
+  containment test found its original podium intruding into the curb lane.
+  Added authored compatibility/invariant notes to pre-existing custom sources
+  for recording authorship; the kit dossier library and vendored engine stay
+  unchanged.
+- Regression suites: `node tests/day3.mjs`, `node tests/day4.mjs` and
+  `node tests/day5.mjs` all pass. They cover all 16 mission routes, dialogue,
+  saves/migration/backup/slots, spawn/goal clearance, driving, camera behavior,
+  population/model/paint caps, social roles, fleeing, carjacking and pursuit.
+  The Day 5 traffic probe runs four simulated minutes: maximum deviation from
+  a street centerline is 7 units (curb parking); every sampled civilian stays
+  out of buildings/fort walls, and 446 moving cars changed position by >2 units.
+- Performance budget: target 16.67 ms at 60 FPS on desktop, fallback 33.3 ms.
+  CPU-only 60 Hz world simulation measured 0.57 ms mean / 0.82 ms p95 over
+  360 samples. Three short same-district browser samples on this VM's
+  SwiftShader measured v1 means 299.67 / 350.20 / 311.06 ms versus final
+  339.69 / 374.92 / 320.24 ms; final p95 values were 408.20 / 456.50 / 382.50 ms.
+  Render calls were 81 before / 77 after, and triangles 73,628 / 79,146, despite
+  the much larger population. Software GPU rendering remains far below target;
+  these measurements do not establish smoothness on hardware. Lower resolution
+  trials helped little, so the final pass retains the original pixel ratio and
+  limits work through batching, camera culling and actor/detail budgets.
+- Chrome/Playwright: baseline loaded without console errors, intro dismissed and
+  ordinary keyboard driving reached 23 KM/H. Final ordinary driving reached
+  44 KM/H; the four-star chase reached 52 KM/H with three patrols, helicopter
+  and a roadblock. Actual E-key driver extraction displayed PULLING DRIVER,
+  incremented thefts and raised two stars. Final console: zero game errors;
+  all 24 observed requests were localhost page/module/engine files.
+- Replaced all four screenshots with unedited browser JPEGs: crowded Old Town
+  First Fare; occupied Port Fort beach/umbrellas and boulevard traffic; market
+  extraction among fruit stalls, vendors and pedestrians; Glass Towers air
+  support chase through civilian traffic. The district/mission menus and QA
+  position hooks frame the beach and market; the market theft itself uses
+  ordinary E-key input. A timed beach capture expired during initial inspection;
+  retried the case and replaced it with active gameplay at 55 seconds remaining.
+  Inspected each final image, verified full JPEG decode, distinct hashes,
+  1280x720 dimensions and less than 114 KiB per image.
+- `MAKEFUN_OUTPUT_DIR=/tmp/la-perla-day5-build node main.ts` packages successfully.
+  The official kit's worktree check passed with zero failures. Final commit
+  check and one v2 submission attempt follow this build log; recording
+  `01a1f375-553b-7631-831c-14aef174d0bd` is this Day 5 run, alongside the three
+  supplied Day 1/3/4 recordings. No push, branch switch or Day 6 work performed.

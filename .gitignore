@@ -1,1 +1,4 @@
 /.playwright-mcp/
+# Playwright traces and temporary captures live here outside the submission screenshots.
+
+# Day 5: keep browser QA intermediates outside the four submitted gameplay captures.
