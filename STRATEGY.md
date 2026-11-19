@@ -1,11 +1,13 @@
-# PUERTO SOL — Game Design (STRATEGY.md draft)
+# LA PERLA — Game Design (STRATEGY.md draft)
 Target: make.fun gta6-01, top 50 ($6) minimum, top 25 ($10) realistic,
 top 10 ($38) if genuinely strong and playable. Deadline 24 Nov 22:00 WIB.
 
 ## Identity (all original — nothing from Rockstar or any commercial game)
-- Title: **PUERTO SOL** — "Golden Hour" (tagline on the start screen).
-- City: **Puerto Sol**, a sun-soaked tropical coastal city. Fixed golden hour
-  (sun low, long shadows, pink-orange sky, neon starting to glow).
+- Title: **LA PERLA** — "A coastal crime story" (tagline on the start screen).
+- City: **LA PERLA**, a Cartagena-inspired coastal city with a walled colonial old
+  town and balconies, a mural-covered street-art quarter, fruit stalls and domino
+  players in plazas, a port fort, and glass towers beside the old town. Fixed golden
+  hour (sun low, long shadows, pink-orange sky, neon starting to glow).
 - Districts (6): Malecón (beachfront boulevard), Old Town (tight streets),
   Marina & Port (containers, cranes), Casino Row (neon, hotels), The Hills
   (villas, winding roads), Industrial (warehouses, docks).
@@ -40,6 +42,7 @@ top 10 ($38) if genuinely strong and playable. Deadline 24 Nov 22:00 WIB.
   indicator). Busted/wasted → respawn at hospital/garage, lose cash.
 - Combat: fists, pistol, SMG, shotgun (pickups + shops); weapon wheel (keys
   1–4); shooting from car; police return fire.
+- Mission design: multiple completion routes (stealth, driving, escape); never one scripted path.
 - Missions: 8 story jobs with stages, timers, objectives, checkpoints,
   dialogue boxes with portraits, pass/fail, cash + respect rewards.
 - Economy + progression: cash, respect ranks (Street → Shot Caller),
@@ -48,7 +51,12 @@ top 10 ($38) if genuinely strong and playable. Deadline 24 Nov 22:00 WIB.
 - Save: localStorage (progress, cash, garage, mission state) + continue.
 - Radio: 3 stations (Sol 101.9 pop, Lagoon FM synthwave, Celeste 98.1
   latin), procedural WebAudio music + DJ lines, station switch (R).
-- HUD (dense, readable at a glance): mission panel (job, stage bars, timer,
+- HEAT: a pursued car remains recognizable after escape; switching cars clears active
+  vehicle heat. A future garage repaint also clears heat (garage is Day 3).
+- Police tactics: low-speed PIT only, gradual tire deflation from spikes,
+  2–3-unit boxing, helicopter spotting and ground-unit direction.
+- HUD (contextual): objective changes flash then shrink to one line; police
+  panel only while wanted; compass waypoints and small circular minimap. Future HUD: mission panel (job, stage bars, timer,
   objective, next), police response panel (unit names, distances, statuses),
   wanted stars, cash, weapon slots + ammo, circular minimap, radio strip,
   speed + car name + condition, dialogue box, health/armor, location name.
@@ -84,3 +92,13 @@ top 10 ($38) if genuinely strong and playable. Deadline 24 Nov 22:00 WIB.
   + HUD + saves. Cut anything that doesn't show in a screenshot.
 - No network requests in game/. No copied code from other entries.
 - No submitting before `check` passes and the game is play-tested in Chrome.
+
+## Build log
+- 2026-11-19 — Codex: Day 2 adds traffic and driver extraction, fleeing pedestrians,
+  five wanted levels with coordinated police tactics, helicopter and spikes, vehicle
+  HEAT, and the contextual HUD/minimap. Rebranded throughout as LA PERLA.
+  Day 3 missions, combat, garage, saves, radio and menus remain deferred.
+
+### Day 3
+
+Start with road-bound police pursuit, vehicle contact separation, and a city minimap.
