@@ -1,57 +1,12 @@
 import * as THREE from '../vendor/three.module.min.js';
-import { batchStaticParts, box, paint, taperedBox } from './geometry.js';
+import { buildCarModel } from './car-model.js';
 
 export function createCar(scene) {
   const root = new THREE.Group();
   root.name = 'player-car';
   root.position.set(596, 0, -54);
   scene.add(root);
-  const shell = new THREE.MeshStandardMaterial({ color: 0xda4f3e, metalness: .25, roughness: .31 });
-  const glass = new THREE.MeshStandardMaterial({ color: 0x33475f, metalness: .36, roughness: .24 });
-  taperedBox(root, shell, 0, .73, 0, 2.24, .69, 4.62, .94, .94);
-  box(root, shell, 0, .98, 1.33, 2.1, .18, 1.75, true);
-  taperedBox(root, glass, 0, 1.27, -.27, 1.83, .71, 2.24);
-  box(root, shell, 0, 1.66, -.34, 1.85, .11, 1.74, true);
-  for (const side of [-1, 1]) {
-    const pillar = box(root, 0x40383f, side * .853, 1.29, -.39, .04, .63, .10);
-    pillar.rotation.z = side * .20;
-    box(root, 0x51424a, side * .98, 1.08, .48, .23, .12, .2);
-    box(root, 0xb2a394, side * 1.075, .96, -.12, .045, .06, .24);
-  }
-  box(root, 0x4a3b41, 0, .93, 1.72, .76, .07, .035);
-  box(root, 0x40383f, 0, .82, -1.84, .7, .07, .035);
-  box(root, 0x332838, 0, .5, -2.31, 2.19, .19, .12);
-  box(root, 0x332838, 0, .5, 2.31, 2.19, .19, .12);
-  box(root, 0xffe6b6, 0, .64, -2.326, .42, .19, .05);
-  for (const side of [-1, 1]) {
-    box(root, 0xeee5d8, side * .66, .68, 2.34, .36, .2, .055);
-    box(root, 0xb8b7ad, side * .36, 1.015, 1.14, .06, .035, .5);
-  }
-
-  const tires = new THREE.CylinderGeometry(.4, .4, .32, 14);
-  const hubs = new THREE.CylinderGeometry(.24, .24, .34, 10);
-  const wheels = [];
-  const tail = new THREE.MeshStandardMaterial({ color: 0xff474f, emissive: 0xcb1633, emissiveIntensity: .75 });
-  for (const side of [-1, 1]) {
-    box(root, tail, side * .74, .88, -2.33, .53, .16, .06);
-    box(root, 0xffe9b9, side * .78, .87, 2.33, .48, .19, .06);
-    box(root, shell, side * 1.07, 1.27, .42, .3, .16, .24);
-    for (const axle of [-1, 1]) {
-      const mount = new THREE.Group();
-      const wheel = new THREE.Group();
-      mount.position.set(side * 1.04, .41, axle * 1.45);
-      for (const [shape, color] of [[tires, 0x241f2b], [hubs, 0x9c98a8]]) {
-        const mesh = new THREE.Mesh(shape, paint(color));
-        mesh.rotation.z = Math.PI / 2;
-        mesh.castShadow = true;
-        wheel.add(mesh);
-      }
-      mount.add(wheel);
-      root.add(mount);
-      wheels.push({ mount, wheel, front: axle > 0 });
-    }
-  }
-  batchStaticParts(root, root.children.filter(part => !part.isGroup));
+  const { paint: shell, brake, roll } = buildCarModel('sport', root, 0xcf182b);
   const velocity = new THREE.Vector2();
   let heading = 0;
   let steering = 0;
@@ -82,16 +37,14 @@ export function createCar(scene) {
     // Project the body onto the world axes to test against building AABBs.
     const extentX = Math.abs(fz) * 1.18 + Math.abs(fx) * 2.34;
     const extentZ = Math.abs(fx) * 1.18 + Math.abs(fz) * 2.34;
+    const { x, z } = root.position;
     const hit = world.move(root.position, velocity.x * dt, velocity.y * dt, extentX, extentZ);
     if (hit.hitX) velocity.x = 0;
     if (hit.hitZ) velocity.y = 0;
     if ((hit.hitX || hit.hitZ) && Math.abs(speed) > 4) damage = Math.min(1, damage + dt * .06);
     root.rotation.y = heading;
-    tail.emissiveIntensity = throttle < 0 || drift ? 2.8 : .75;
-    for (const { mount, wheel, front } of wheels) {
-      if (front) mount.rotation.y = steering * .32;
-      wheel.rotation.x += (hit.hitX && hit.hitZ ? 0 : speed) * dt / .4;
-    }
+    brake.color.setScalar(throttle < 0 || drift ? 2.8 : 1);
+    roll((root.position.x - x) * fx + (root.position.z - z) * fz, steering * .32);
   }
 
   return {
@@ -106,10 +59,15 @@ export function createCar(scene) {
     bump(dx, dz) { impactKick.x += dx * 6; impactKick.y += dz * 6; damage = Math.min(1, damage + Math.hypot(dx, dz) * .02); },
     configure({ color, upgrades }) { shell.color.setHex(color); engineUpgrade = upgrades.engine; handlingUpgrade = upgrades.handling; },
     repair() { damage = 0; tireCondition = 1; },
+    takeDamage(amount) { if (Number.isFinite(amount)) damage = THREE.MathUtils.clamp(damage + Math.max(0, amount), 0, 1); },
     upgrade(kind) { if (kind === 'engine') engineUpgrade = Math.min(3, engineUpgrade + 1); if (kind === 'handling') handlingUpgrade = Math.min(3, handlingUpgrade + 1); },
     damageTires(dt) { tireCondition = Math.max(.08, tireCondition - dt * .42); },
     // Ground speed in world units per second.
     get speed() { return velocity.length(); },
+    get gear() {
+      const forward = velocity.x * Math.sin(heading) + velocity.y * Math.cos(heading);
+      return forward < -.5 ? 'R' : Math.abs(forward) < .5 ? 'N' : String(Math.min(6, 1 + Math.floor(forward * 3.6 / 25)));
+    },
     get health() { return 1 - damage; },
   };
 }

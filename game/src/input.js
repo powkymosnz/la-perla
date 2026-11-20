@@ -1,5 +1,5 @@
 // Capture movement keys while leaving Enter and Tab available for menu navigation.
-const controls = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyF', 'KeyR', 'KeyG', 'Digit1', 'Digit2', 'Escape', 'Space', 'ShiftLeft', 'ShiftRight']);
+const controls = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyE', 'KeyF', 'KeyR', 'KeyG', 'KeyC', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Escape', 'Space', 'ShiftLeft', 'ShiftRight']);
 
 export function createInput() {
   const held = new Set();

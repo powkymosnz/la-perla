@@ -1,4 +1,5 @@
 import { createRender } from './render.js';
+import { createEnvironment, testConditions, TIMES, WEATHER } from './environment.js';
 import { createWorld } from './world.js';
 import { createCar } from './vehicles.js';
 import { createPlayer } from './player.js';
@@ -11,6 +12,8 @@ import { createGarage, SERVICES } from './garage.js';
 import { createRadio } from './radio.js';
 import { createCombat } from './combat.js';
 import { missions as jobs } from './story.js';
+import { createDenseHud, setContact } from './hud.js';
+import { campaignSnapshot, CASE_PRESENTATION, missionCall } from './presentation.js';
 
 const select = selector => document.querySelector(selector);
 const intro = select('#intro');
@@ -26,6 +29,9 @@ function start() {
   const render = createRender();
   const world = createWorld(render.scene);
   const car = createCar(render.scene);
+  const environment = createEnvironment(render.scene, render, car);
+  const initialConditions = testConditions(location.search);
+  environment.set(initialConditions.time, initialConditions.weather);
   car.configure(state);
   const player = createPlayer(render.scene, car);
   const camera = createCamera();
@@ -35,9 +41,12 @@ function start() {
   const dialogue = select('#dialogue');
   const radio = createRadio();
   const combat = createCombat(render.scene, world, radio);
+  const denseHud = createDenseHud(combat);
   let missions = createMissions(state);
   let mode = 'menu', currentJob = 0, toast = '', toastTime = 0;
   let lastWanted = 0, shake = 0, hitStop = 0, accumulator = 0;
+  let vitals = { health: state.health ?? 100, armour: state.armour ?? 80, respect: state.respect ?? state.completed.length * 11 + 12 };
+  let previousCondition = car.health;
   const hud = Object.fromEntries(['objective', 'file', 'radio', 'mission', 'hud', '.stars', '.cash', '.heat', '.speed',
     '.health i', '.action', '.police-status', '.compass'].map(key => [key, select(key.startsWith('.') ? key : '#' + key)]));
   function setText(key, value) {
@@ -74,6 +83,7 @@ function start() {
     intro.querySelector('[data-action="new"]').focus();
   }
   function record(slot) {
+    Object.assign(state, vitals);
     const ok = saveGame(state, slot);
     if (!ok) notify('Save unavailable');
     return ok;
@@ -83,6 +93,9 @@ function start() {
     missions = createMissions(state);
     car.configure(state);
     car.repair();
+    combat.reset();
+    vitals = { health: state.health ?? 100, armour: state.armour ?? 80, respect: state.respect ?? state.completed.length * 11 + 12 };
+    previousCondition = car.health;
     world.clearHeat();
     player.reset(596, -54, 0);
   }
@@ -91,8 +104,8 @@ function start() {
     if (node.end) { dialogue.hidden = true; done(); return; }
     mode = 'dialogue';
     dialogue.hidden = false;
-    dialogue.querySelector('strong').textContent = node.speaker;
-    dialogue.querySelector('p').textContent = node.line;
+    setContact(dialogue, node.speaker, node.line);
+    denseHud.call(node.speaker, node.line);
     radio.speak(node.speaker, node.line);
     const choices = node.choices ?? [{ label: 'Continue', to: node.next }];
     menuButtons(dialogue, choices.map(choice => [choice.label, () => {
@@ -106,10 +119,24 @@ function start() {
     const job = missions.start(index);
     world.clearHeat();
     car.repair();
+    previousCondition = car.health;
+    lastWanted = 0;
     player.reset(...job.start);
     if (index === 1) world.resetMarketCar();
     if (index === 3) notify('El Toro · ' + radio.bark('El Toro'));
-    graph('intro', () => { state.resume = { job: index }; record(); missions.launch(world); play(); });
+    graph('intro', () => {
+      state.resume = { job: index };
+      missions.launch(world);
+      record();
+      play();
+      liveCall();
+    });
+  }
+  function liveCall() {
+    const { speaker, line } = missionCall(currentJob);
+    denseHud.call(speaker, line);
+    radio.speak(speaker, line);
+    notify(speaker + ' · ' + line);
   }
   const nextJob = () => jobs.findIndex(job => !state.completed.includes(job.title));
   function caseFiles() {
@@ -153,12 +180,29 @@ function start() {
       ['Back', pause],
     ], 'slots');
   }
+  function conditionsMenu() {
+    const current = environment.state;
+    show('Time & weather', current.label + ' · Choose the conditions for your drive.', [
+      ...Object.entries(TIMES).map(([id, preset]) => [preset.label + (id === current.time ? ' ✓' : ''), () => {
+        environment.set(id, current.weather); conditionsMenu();
+      }]),
+      ...WEATHER.map(id => [id.toUpperCase() + (id === current.weather ? ' ✓' : ''), () => {
+        environment.set(current.time, id); conditionsMenu();
+      }]),
+      ['Back to the street', play],
+    ], 'conditions');
+  }
   function pause() {
     show('Paused', 'Pick up where you left off or open your case files.', [
-      ['Resume', play], ['Case files', caseFiles], ['Save slots', slots], ['Title', title],
+      ['Resume', play], ['Time & weather', conditionsMenu], ['Case files', caseFiles], ['Save slots', slots], ['Title', title],
     ], 'pause');
   }
-  function notify(message) { toast = message; toastTime = 4; }
+  function notify(message) {
+    toast = message; toastTime = 4;
+    const [speaker, ...line] = message.split(' · ');
+    if (line.length && ['Rosa', 'Vega', 'Luz', 'El Toro'].includes(speaker)) denseHud.call(speaker, line.join(' · '));
+  }
+  function cameraToast() { notify('CAMERA · ' + camera.modeName); }
   function finish() {
     state.resume = null;
     record();
@@ -206,9 +250,13 @@ function start() {
     actualTime += dt;
     if (input.take('Escape')) {
       if (mode === 'playing') pause();
-      else if (mode === 'pause' || mode === 'garage') play();
+      else if (mode === 'pause' || mode === 'garage' || mode === 'conditions') play();
     }
     if (mode === 'playing') {
+      if (input.take('KeyC') && player.driving) {
+        camera.cycle();
+        cameraToast();
+      }
       if (input.take('KeyR')) { radio.next(); notify('Luz · ' + radio.bark('Luz')); }
       if (input.take('KeyG') && world.nearGarage(player.target) && car.speed < 4) {
         notify('Rosa · ' + radio.bark('Rosa'));
@@ -231,28 +279,31 @@ function start() {
           ['Retry', () => begin(currentJob)], ['Case files', caseFiles],
         ], 'failed');
       }
-      if (world.wanted >= 3 && lastWanted < 3) notify('Vega · ' + radio.bark('Vega'));
+      if (world.wanted >= 3 && lastWanted < 3) liveCall();
       lastWanted = world.wanted;
     } else accumulator = 0;
 
     const waypoint = missions.waypoint && { x: missions.waypoint[0], z: missions.waypoint[1] };
     const nearGarage = world.nearGarage(player.target) && car.speed < 4;
     const job = missions.active;
-    const timer = missions.remaining === null ? '' : ' · ' + Math.ceil(missions.remaining) + 's';
     hud.hud.classList.toggle('on-foot', !player.driving);
-    setText('file', job ? job.title.toUpperCase() + timer : 'FIELD FILE');
+    setText('file', job ? job.title.toUpperCase() : 'LA PERLA · FIELD FILE');
     setText('objective', nearGarage && !job ? 'G · Rosa’s Garage' : missions.objective);
     setText('.stars', '★'.repeat(world.wanted) + '☆'.repeat(5 - world.wanted));
     setText('.cash', '$' + state.cash.toLocaleString());
     setText('.heat', world.heat ? 'HEAT · HOT CAR' : '');
-    setText('.speed', Math.round(car.speed * 3.6) + ' KM/H');
-    const health = Math.round(car.health * 100);
-    hud['.health i'].style.setProperty('--health', health + '%');
+    setText('.speed', Math.round(player.speed * 3.6) + '');
+    const impact = Math.max(0, previousCondition - car.health) * 35;
+    const absorbed = Math.min(vitals.armour, impact);
+    vitals.armour -= absorbed;
+    vitals.health = Math.max(0, vitals.health - impact + absorbed);
+    vitals.respect = Math.max(vitals.respect, Math.min(100, 12 + state.completed.length * 11));
+    previousCondition = car.health;
     toastTime -= dt;
     setText('.action', player.carjacking ? 'PULLING DRIVER' : toastTime > 0 ? toast : nearGarage ? 'G · GARAGE' : '');
-    setText('radio', player.driving ? radio.label + ' · LUZ ON AIR' : combat.label + ' · 1/2 select · F attack');
+    setText('radio', player.driving ? '♫ ' + radio.label.toUpperCase() + ' · R TUNE' : combat.label + ' · 1–5 SELECT · F ATTACK');
     const closest = Math.min(...world.police.map(unit => unit.distance));
-    setText('.police-status', world.wanted ? [world.police.length + ' PATROL', Number.isFinite(closest) ? Math.round(closest) + ' m' : '', world.helicopter ? 'AIR SUPPORT' : world.unseen > 0 ? 'SEARCHING' : 'IN PURSUIT'].filter(Boolean).join(' · ') : '');
+    setText('.police-status', world.wanted ? [world.unseen > 0 ? 'SEARCHING' : 'DISPATCH / ACTIVE', Number.isFinite(closest) ? Math.round(closest) + ' m CLOSEST' : 'DEPLOYING'].join(' · ') : '');
     hud.hud.classList.toggle('wanted', world.wanted > 0);
     if (waypoint) {
       const dx = waypoint.x - player.target.x, dz = waypoint.z - player.target.z;
@@ -261,22 +312,45 @@ function start() {
       const bearing = (Math.round(angle / (Math.PI / 4)) + 16) % 8;
       setText('.compass', arrows[bearing] + ' ' + job.district + ' · ' + Math.round(Math.hypot(dx, dz)) + ' m');
     } else setText('.compass', 'N · LA PERLA');
+    denseHud.update(dt, mode === 'playing', missions, world, car, player, environment.state, vitals);
     drawMinimap(player, world, waypoint);
-    camera.follow(dt, player, car, world);
+    const trauma = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : shake * shake;
+    camera.follow(dt, player, car, world, trauma * Math.sin(actualTime * 71) * .45, trauma * Math.sin(actualTime * 83) * .3);
     // Compact ambient instance buffers against the resolved camera, once per rendered frame.
     world.animate(dt, camera.camera);
-    const trauma = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : shake * shake;
-    camera.camera.position.x += trauma * Math.sin(actualTime * 71) * .45;
-    camera.camera.position.y += trauma * Math.sin(actualTime * 83) * .3;
     shake = Math.max(0, shake - dt * 2.6);
+    environment.update(mode === 'playing' ? dt : 0, player.target);
     render.draw(camera.camera, player.target);
     requestAnimationFrame(frame);
   }
   if (testing) {
-    window.__laPerla = {
-      world, car, player, radio, render,
+    Object.defineProperty(window, '__laPerla', { value: Object.freeze({
+      world, car, player, radio, render, combat,
+      camera: Object.freeze({
+        get mode() { return camera.mode; },
+        get modeName() { return camera.modeName; },
+        get modes() { return camera.modes; },
+        get position() { return Object.freeze(camera.camera.position.toArray()); },
+        setMode: value => camera.setMode(value),
+      }),
+      get conditions() { return environment.state; },
       get state() { return state; }, get missions() { return missions; }, get mode() { return mode; },
-    };
+      stageCase(index) {
+        const snapshot = campaignSnapshot(index);
+        load(snapshot);
+        currentJob = index;
+        missions.start(index);
+        missions.choose(0);
+        missions.launch(world);
+        intro.hidden = true;
+        lastWanted = 0;
+        car.takeDamage(1 - CASE_PRESENTATION[index].condition);
+        previousCondition = car.health;
+        play();
+        liveCall();
+        return { cash: state.cash, ...missionCall(index) };
+      },
+    }), writable: false, configurable: false });
   }
   requestAnimationFrame(frame);
 }

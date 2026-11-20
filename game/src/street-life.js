@@ -64,13 +64,25 @@ export function buildStreetLife(scene, benches) {
     for (const side of [-1, 1]) { box(scene, 0x42474a, x + side * 1.4, .34, z, .14, .68, .65); box(scene, 0x42474a, x + side * 1.4, 1, z - .34, .13, .8, .13); }
     box(scene, 0x9e6a47, x, 1.1, z - .34, 3.5, .44, .1);
   }
-  const carts = [[-313, -5], [-213, 65], [-413, 135], [487, 140], [612, -80], [612, 125], [588, 212], [113, -15], [413, -125]];
+  const carts = [[-313, -5], [-213, 65], [-413, 135], [487, 140], [612, -80], [612, 125], [588, 212], [113, -15], [413, -125],
+    [506, 145], [521, 172], [546, 172], [570, 164], [588, 132]];
   carts.forEach(([x, z], i) => cart(scene, x, z, i));
   // Awnings, hanging pennants and produce crates make the market legible at a distance.
   for (const [x, z] of [[527, 126], [541, 126], [555, 126], [571, 145], [527, 159]]) {
     box(scene, 0xe7ba67, x - 2, .4, z + 2, 1, .8, .85);
     box(scene, 0x7ca35a, x - 2, .94, z + 2, .8, .25, .65);
     for (let n = 0; n < 7; n++) box(scene, colors[n % colors.length], x - 3 + n, 3, z + 1.94, .44, .4, .035);
+  }
+  // Shade sails and stacked produce give the market foreground readable layers.
+  for (const [x, z, color] of [[510, 133, 0xe56f66], [534, 181, 0x24a9a6], [558, 181, 0xf0bf4c], [582, 151, 0xe38bac]]) {
+    box(scene, 0x55433c, x, 3.8, z, 15, .18, 8, true);
+    box(scene, color, x, 4.05, z, 14.5, .12, 7.6, true);
+    for (let stripe = -3; stripe <= 3; stripe++) box(scene, stripe % 2 ? 0xffe5b2 : 0xf2cf89, x + stripe * 1.9, 4.12, z, .72, .035, 7.5);
+    for (const side of [-1, 1]) for (const end of [-1, 1]) box(scene, 0x72513d, x + side * 6.8, 2, z + end * 3.5, .13, 4, .13);
+    for (let crate = 0; crate < 3; crate++) {
+      box(scene, [0x936440, 0x987047, 0x82583d][crate], x - 4 + crate * 4, .55, z - 4.5, 2.6, .9, 1.4, true);
+      for (let fruit = 0; fruit < 5; fruit++) box(scene, [0xf4b73d, 0xd8614e, 0x76a04d][(fruit + crate) % 3], x - 4.9 + crate * 4 + fruit * .42, 1.12, z - 4.5, .35, .3, .36);
+    }
   }
   sign(scene, 539, 113, Math.PI, 'MERCADO SOL', 'FRUTA FRESCA · DOMINO · CAFE', '#ffc771', true);
   sign(scene, 580, 177, Math.PI, 'LA PLAZA', 'CADA TARDE · MUSICA EN VIVO', '#5be2cd', true);

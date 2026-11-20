@@ -1,3 +1,4 @@
+// Day 4 asset integration checks cover traversal, pursuit, and camera behavior.
 import assert from 'node:assert/strict';
 import * as THREE from '../game/vendor/three.module.min.js';
 import { createWorld } from '../game/src/world.js';
@@ -44,6 +45,7 @@ world.raiseWanted(4);
 for (let i = 0; i < 120; i++) world.update(1 / 120, player, car);
 assert.equal(world.police.length, 3);
 assert.ok(world.helicopter, 'four-star pursuit deploys the helicopter');
+assert.ok(Math.abs(world.helicopter.rotor.rotation.y) > 0, 'helicopter rotor animates during pursuit');
 for (const unit of world.police) assert.equal(world.blocked(unit.root.position.x, unit.root.position.z, 1.1), false);
 world.clearHeat();
 assert.equal(world.police.length, 0);

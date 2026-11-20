@@ -1,14 +1,27 @@
 import { missions as jobs, dialogue } from './story.js';
+import { fundMission } from './presentation.js';
 
 // Waypoint checks use the world's horizontal coordinates.
 const distance = (point, [x, z]) => Math.hypot(point.x - x, point.z - z);
 
 export function createMissions(state) {
-  let active = null, stage = 'ready', route = 0, remaining = null, thefts = 0, index = 0;
+  let active = null, stage = 'ready', route = 0, remaining = null, thefts = 0, index = 0, elapsed = 0;
   return {
     get active() { return active; },
     get stage() { return stage; },
     get remaining() { return remaining; },
+    get elapsed() { return elapsed; },
+    get progress() {
+      if (!active) return { current: 0, total: 0, next: 'Esc · choose a case file' };
+      const multi = !!active.pickup || index === 1;
+      const total = multi ? 4 : 3;
+      const current = stage === 'intro' ? 1 : stage === 'complete' ? total :
+        stage === 'playing' && multi ? 3 : 2;
+      const next = stage === 'complete' ? 'Radio back for your payout' : stage === 'intro' ? 'Choose your route' :
+        stage === 'pickup' ? 'Escape Vega’s response' : stage === 'steal' ? 'Lose the patrol · reach the handoff' :
+          (index === 1 || index === 5 || (index === 7 && route)) ? 'Clear wanted · reach the safe point' : 'Reach the handoff · collect $' + active.reward.toLocaleString();
+      return { current, total, next };
+    },
     get waypoint() { return active && (stage === 'pickup' ? active.pickup[route] : stage === 'steal' ? [521, 94] : active.goal[route]); },
     get graph() { return dialogue[index]; },
     get objective() {
@@ -26,10 +39,12 @@ export function createMissions(state) {
       stage = 'intro';
       route = 0;
       remaining = null;
+      elapsed = 0;
       return active;
     },
     choose(value) { route = value; },
     launch(world) {
+      fundMission(state, index);
       stage = index === 1 ? 'steal' : active.pickup ? 'pickup' : 'playing';
       remaining = active.time?.[route] ?? null;
       thefts = world.thefts;
@@ -37,6 +52,7 @@ export function createMissions(state) {
     },
     update(dt, player, world, car) {
       if (!active || ['ready', 'intro', 'complete', 'failed'].includes(stage)) return;
+      elapsed += dt;
       if (car.health <= 0) { stage = 'failed'; return; }
       if (remaining !== null) {
         remaining = Math.max(0, remaining - dt);
@@ -61,7 +77,7 @@ export function createMissions(state) {
       }
       stage = 'complete';
     },
-    clear() { active = null; stage = 'ready'; },
+    clear() { active = null; stage = 'ready'; remaining = null; elapsed = 0; },
   };
 }
 

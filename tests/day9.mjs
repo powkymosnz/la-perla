@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import * as THREE from '../game/vendor/three.module.min.js';
+import { createEnvironment, testConditions } from '../game/src/environment.js';
+import { buildCity } from '../game/src/city.js';
+import { createCar } from '../game/src/vehicles.js';
+const context = new Proxy({}, { get: () => () => {}, set: () => true });
+globalThis.document = { createElement: () => ({ getContext: () => context }) };
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2();
+buildCity(scene);
+const car = createCar(scene);
+const rig = { sky: { material: { uniforms: Object.fromEntries(['horizon', 'high', 'night', 'rain'].map(k => [k, { value: k === 'horizon' || k === 'high' ? new THREE.Color() : 0 }])) } },
+  hemi: new THREE.HemisphereLight(), sun: new THREE.DirectionalLight(), sunDirection: new THREE.Vector3(), renderer: {} };
+const environment = createEnvironment(scene, rig, car);
+const skies = new Set();
+for (const time of ['noon', 'golden', 'night']) for (const weather of ['clear', 'rain']) {
+  environment.set(time, weather);
+  const state = environment.state;
+  assert.equal(state.time, time); assert.equal(state.weather, weather);
+  assert.equal(environment.rain.visible, weather === 'rain');
+  assert.equal(environment.headlights.visible, time === 'night' || weather === 'rain');
+  assert.equal(environment.cityLights.visible, time === 'night' || weather === 'rain');
+  assert.equal(rig.sky.material.uniforms.night.value, time === 'night' ? 1 : 0);
+  assert.ok(scene.userData.cityLighting.facades.every(m => m.emissiveIntensity === (time === 'night' ? 1.7 : 0)));
+  assert.equal(scene.userData.cityLighting.road.roughness, weather === 'rain' ? .16 : .92);
+  assert.ok(rig.hemi.intensity >= .7, 'night keeps pursuit readable');
+  assert.ok(Object.isFrozen(state));
+  skies.add(state.sky);
+}
+assert.equal(skies.size, 6, 'each condition changes sky color');
+environment.set('noon', 'clear'); const highSun = rig.sunDirection.y;
+environment.set('golden', 'clear'); assert.ok(highSun > rig.sunDirection.y * 4, 'noon casts shorter shadows');
+environment.set('night', 'rain');
+const before = environment.rain.geometry.attributes.position.array.slice();
+environment.update(.1, new THREE.Vector3(400, 0, 0));
+assert.notDeepEqual(environment.rain.geometry.attributes.position.array, before, 'rain falls');
+assert.equal(environment.rain.position.x, 400, 'rain follows playable area');
+assert.ok(environment.headlights.children.some(o => o.isSpotLight && o.intensity > 0));
+assert.throws(() => environment.set('invalid', 'clear'), RangeError);
+assert.throws(() => environment.set('night', 'snow'), RangeError);
+assert.equal(environment.state.time, 'night', 'invalid input is atomic');
+assert.deepEqual(testConditions('?time=night&weather=rain'), { time: 'golden', weather: 'clear' });
+assert.deepEqual(testConditions('?test&time=night&weather=rain'), { time: 'night', weather: 'rain' });
+assert.deepEqual(testConditions('?test&time=bad&weather=bad'), { time: 'golden', weather: 'clear' });
+environment.set('golden', 'clear');
+assert.equal(environment.headlights.visible, false); assert.equal(environment.rain.visible, false);
+assert.equal(scene.userData.cityLighting.road.metalness, 0);
+console.log('PASS: six time/weather scene states, sky/sun/fog, illuminated city/headlights, wet/dry road, falling rain, validation and test-only URL selection.');

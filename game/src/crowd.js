@@ -1,7 +1,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { BEACH_BAYS } from './street-life.js';
 
-export const PEDESTRIAN_CAP = 1400;
+export const PEDESTRIAN_CAP = 1800;
 const clothes = [0xe78763, 0x29a3a1, 0xf3c65c, 0xd6688c, 0x617eb8, 0x8876ad, 0xf4e1bc, 0x567854];
 const skins = [0xc78661, 0xe9b78a, 0x965c43, 0x673f35, 0xd69b72];
 // Persistent Idle/Walk/Sit/Beach roles with Flee as a timed, interruptible state.
@@ -17,7 +17,7 @@ export function createCrowd(scene, blocked) {
     items.push(ped); return ped;
   };
   // Busy primary promenades come first so the visible pool always contains street-level life.
-  for (const x of [-300, 400, 500, 600]) for (let z = -180; z <= 190; z += 11) for (const side of [-1, 1]) {
+  for (const x of [-400, -300, -200, 300, 400, 500, 600]) for (let z = -180; z <= 190; z += 8) for (const side of [-1, 1]) {
     const route = [[x + side * 11.7, -188], [x + side * 11.7, 188]];
     const p = add(x + side * 11.7, z, 'walk', side > 0 ? 0 : Math.PI, route);
     if (p) p.next = side > 0 ? 1 : 0;
@@ -32,7 +32,7 @@ export function createCrowd(scene, blocked) {
     }
   }
   // Chatting pairs on the boulevards and small plaza gatherings make readable social clusters.
-  for (const roadX of [-400, -300, -200, 100, 300, 400, 500, 600]) for (let z = -180; z <= 180; z += 60) {
+  for (const roadX of [-400, -300, -200, 100, 300, 400, 500, 600]) for (let z = -180; z <= 180; z += 44) {
     for (let n = 0; n < 3; n++) add(roadX - 12.1 - (n === 2 ? 1 : 0), z + n * 1.25, 'chat', n % 2 ? Math.PI : 0);
   }
   const benches = [[-420, -88], [-312, 112], [76, -88], [-312, -32], [-312, 32], [-212, -32], [588, 18], [588, 78], [588, 118], [588, 178], [612, -20], [612, 82]];
@@ -43,6 +43,12 @@ export function createCrowd(scene, blocked) {
     for (let n = 0; n < 3; n++) add(x - 2 + n * 1.65, z + 3 + (n % 2) * .7, 'chat', Math.PI);
   }
   for (const [x, z, heading] of [[513.5, 105, Math.PI / 2], [516.5, 105, -Math.PI / 2], [515, 103.5, 0], [515, 106.5, Math.PI]]) add(x, z, 'domino', heading);
+  // Visitors cluster around the market entrances and produce stalls.
+  for (const [x, z] of [[508, 141], [518, 178], [544, 178], [566, 178], [584, 157], [505, 118]]) {
+    add(x, z, 'walk', Math.PI / 2, [[x, z], [x + 5, z + 1], [x + 2, z + 5], [x - 3, z + 2]]);
+    add(x + 1.3, z + 1.1, 'chat', Math.PI);
+    add(x - 1.3, z + 1.2, 'chat', 0);
+  }
   const marketRoute = [[512, 112], [580, 112], [580, 178], [512, 178]];
   for (let i = 0; i < 24; i++) {
     const edge = i % 4, a = marketRoute[edge], b = marketRoute[(edge + 1) % 4], t = (Math.floor(i / 4) + .4) / 6;
@@ -55,7 +61,7 @@ export function createCrowd(scene, blocked) {
     add(x - 2.6, z - 2, 'chat', Math.PI / 2);
   }
   // Static population capacity is separate from the visible instance budget.
-  const cap = scene.userData.software ? 120 : 180;
+  const cap = scene.userData.software ? 162 : 225;
   const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshLambertMaterial(), cap * 16);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); mesh.frustumCulled = false; mesh.castShadow = !scene.userData.software; mesh.count = 0; scene.add(mesh);
   const dummy = new THREE.Object3D(), color = new THREE.Color();

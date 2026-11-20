@@ -3,7 +3,7 @@ const VERSION = 2;
 // Store progression and paint independently of the procedural asset definitions.
 export const SLOTS = ['Slot 1', 'Slot 2', 'Slot 3'];
 export const newGame = () => ({
-  cash: 2450, completed: [], upgrades: { engine: 0, handling: 0 }, color: 0xda4f3e,
+  cash: 2450, completed: [], upgrades: { engine: 0, handling: 0 }, color: 0xcf182b,
 });
 function read() {
   for (const key of [KEY, KEY + '-backup']) try {
@@ -20,6 +20,8 @@ export function loadGame(slot) {
       !snapshot.completed.every(title => typeof title === 'string') ||
       !Number.isFinite(snapshot.cash) || snapshot.cash < 0 ||
       !Number.isInteger(snapshot.color) || snapshot.color < 0 || snapshot.color > 0xffffff || !snapshot.upgrades ||
+      (snapshot.funded !== undefined && (!Array.isArray(snapshot.funded) || snapshot.funded.length > 8 || !snapshot.funded.every(title => typeof title === 'string'))) ||
+      !['health', 'armour', 'respect'].every(key => snapshot[key] === undefined || Number.isFinite(snapshot[key]) && snapshot[key] >= 0 && snapshot[key] <= 100) ||
       (snapshot.resume != null && (!Number.isInteger(snapshot.resume.job) || snapshot.resume.job < 0 || snapshot.resume.job >= 8)) ||
       !['engine', 'handling'].every(key => Number.isInteger(snapshot.upgrades[key]) && snapshot.upgrades[key] >= 0 && snapshot.upgrades[key] <= 3)) return null;
   return snapshot;

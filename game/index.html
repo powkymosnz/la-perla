@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Day 5 keeps the v1 HUD information and layout while the city population grows. -->
+<!-- Live coastal case-file HUD. All portraits, world art and audio are local/procedural. -->
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -60,7 +60,7 @@
   #screens p { line-height: 1.5; }
   #screens nav, #dialogue nav { display: flex; flex-wrap: wrap; gap: 8px; }
   #screens button { min-width: 132px; }
-  #radio { position: absolute; left: 18px; bottom: 94px; color: var(--skin-radio); font-size: 12px; }
+  #radio { position: absolute; left: 18px; bottom: 174px; color: var(--skin-radio); font-size: 12px; padding: 8px 10px; background: #181622e6; border-left: 2px solid var(--skin-radio); }
   #dialogue { position: fixed; z-index: 3; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(580px, calc(100% - 32px)); padding: 14px; color: var(--skin-paper); background: var(--skin-case-solid); border-left: 3px solid var(--skin-peach); }
   @keyframes arrive { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
   #dialogue:not([hidden]), #screens:not([hidden]) article { animation: arrive 180ms cubic-bezier(.2,0,.2,1); }
@@ -78,32 +78,108 @@
   .stars { color: var(--skin-star); letter-spacing: .08em; font-size: 20px; }
   .cash { color: var(--skin-cash); }
   .heat { color: var(--skin-heat); font-size: 11px; }
-  #hud > .action { left: 50%; bottom: 16%; transform: translateX(-50%); max-width: min(520px, 70vw); text-align: center; padding: 4px; }
+  #hud > .action { left: 50%; bottom: 16%; transform: translateX(-50%); max-width: min(520px, 70vw); text-align: center; padding: 5px 9px; background: #211528c9; }
   .action { color: var(--skin-message); font-size: 10px; }
   #police { display: none; right: 18px; top: 95px; color: var(--skin-police-text); font-size: 11px; padding: 8px 10px; background: var(--skin-police-panel); border-right: 2px solid var(--skin-police-accent); }
   #hud.wanted #police { display: block; }
   #minimap { right: 18px; bottom: 22px; width: 104px; height: 104px; border-radius: 50%; background: repeating-conic-gradient(var(--skin-map-tick) 0 4deg, transparent 4deg 12deg), var(--skin-map-base); box-shadow: inset 0 0 0 18px var(--skin-map-inner); }
-  .compass { bottom: 136px; right: 18px; font-size: 10px; color: var(--skin-speed); }
-  .speed { bottom: 22px; left: 18px; font-size: 20px; color: var(--skin-speed); }
+  .compass { bottom: 136px; right: 18px; font-size: 10px; color: var(--skin-speed); padding: 5px 8px; background: #211528b8; }
+  .speed { bottom: 22px; left: 18px; font-size: 20px; color: var(--skin-speed); padding: 2px 6px; background: #211528a6; }
   .health { bottom: 53px; left: 18px; color: var(--skin-health-label); font-size: 10px; }
   .health i { display: inline-block; width: 116px; height: 5px; background: linear-gradient(90deg, var(--skin-health-fill) 0 var(--health, 100%), var(--skin-health-track) var(--health, 100%)); vertical-align: middle; margin-left: 5px; }
+  /* Edge-anchored 720p case-file layout leaves the car and pursuit lane open. */
+  #hud { font-variant-numeric: tabular-nums; }
+  #mission { width: 336px; max-width: 43vw; background: #181622e6; padding: 12px 14px; }
+  #mission small { font-size: 11px; letter-spacing: .12em; }
+  #objective { font-size: 14px; margin: 8px 0; }
+  .stage-heading { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 11px; color: #f9d5a8; }
+  #mission-timer { color: #fff2da; }
+  #stage-bar { height: 4px; margin: 7px 0 9px; background: linear-gradient(90deg, #ffc198 var(--progress, 0%), #ffffff26 var(--progress, 0%)); }
+  .mission-next { display: flex; align-items: baseline; gap: 8px; font-size: 11px; line-height: 1.4; color: #e5dacd; }
+  .mission-next b { color: #ffc198; font-size: 10px; }
+  #status { min-width: 214px; padding: 8px 12px; background: #181622e6; border-top: 2px solid var(--skin-cash); }
+  .stars { display: block; font-size: 24px; line-height: 1.1; letter-spacing: .15em; }
+  .cash { display: block; font-size: 36px; line-height: 1.2; letter-spacing: -.025em; }
+  .heat { display: block; min-height: 14px; }
+  #police { top: 146px; width: 270px; padding: 10px 12px; color: #f8dbd6; background: #181622e6; }
+  .police-status { display: block; font-size: 10px; color: #ffb3a5; margin-bottom: 7px; }
+  #dispatch-level { display: block; font-size: 12px; color: #fff2da; padding-bottom: 7px; border-bottom: 1px solid #ffffff26; }
+  .dispatch-unit { display: grid; grid-template-columns: 88px 46px 1fr; align-items: center; gap: 5px; padding-top: 8px; font-size: 10px; letter-spacing: .01em; }
+  .dispatch-unit[hidden] { display: none; }
+  .dispatch-unit span { color: #fff2da; text-align: right; }
+  .dispatch-unit em { font-size: 9px; font-style: normal; color: #ffbc9c; text-align: right; }
+  #weapons { left: 18px; top: 205px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; width: 336px; max-width: 43vw; }
+  .weapon-slot { display: grid; justify-items: center; gap: 3px; padding: 5px 2px; border: 1px solid #ffffff33; background: #181622e6; font-size: 10px; letter-spacing: 0; }
+  .weapon-slot kbd { justify-self: start; margin-left: 4px; color: #bdb8bc; font: inherit; }
+  .weapon-slot b { font-size: 13px; }
+  .weapon-slot.active { color: #ffe0b7; border-color: #ffc198; box-shadow: inset 0 -3px #ffc198; background: #382733ed; }
+  #comms { left: 18px; top: 292px; width: 304px; max-width: 39vw; padding: 10px; background: #181622e6; border-left: 2px solid #64c9be; }
+  #comms[hidden] { display: none; }
+  .contact { display: flex; align-items: center; gap: 10px; }
+  .portrait { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; border: 2px solid #fff2da99; color: #fff; font-size: 16px; font-weight: 800; letter-spacing: -.04em; }
+  .contact-name { display: block; font-size: 13px; }
+  .contact-role { display: block; color: #b7d8d1; font-size: 11px; margin-top: 3px; font-weight: 500; }
+  #comms p { font-size: 12px; line-height: 1.5; margin: 9px 0 0; color: #f2e6d6; font-weight: 500; letter-spacing: .01em; }
+  #dialogue .contact-name { font-size: 16px; }
+  #dialogue p { font-size: 14px; line-height: 1.5; }
+  #district { top: 18px; left: 50%; transform: translateX(-50%); padding: 8px 14px; background: #181622dd; font-size: 12px; border-bottom: 1px solid #ffc19880; white-space: nowrap; }
+  #speed-panel { left: 18px; bottom: 18px; width: 248px; padding: 10px 14px; background: #181622e6; border-left: 3px solid #ffc198; }
+  #car-name { display: block; color: #ffe0b7; font-size: 13px; letter-spacing: .14em; }
+  .speed { position: static; padding: 0; background: none; font-size: 56px; line-height: 1; font-style: italic; letter-spacing: -.065em; color: #fff2da; }
+  .speed-unit { font-size: 12px; color: #edc8a6; margin-left: 8px; }
+  .car-details { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: #ffe0b7; margin-top: 7px; }
+  .health { bottom: 146px; padding: 6px 9px; background: #181622e6; }
+  #minimap { width: 148px; height: 148px; border: 2px solid #ffc19899; }
+  .compass { bottom: 182px; font-size: 11px; background: #181622e6; max-width: 270px; }
+  #hud > .action { bottom: 24px; font-size: 11px; max-width: 40vw; }
+  #hud > .action:empty { display: none; }
+  #left-stack { top: 18px; left: 18px; width: 336px; max-width: 43vw; display: flex; flex-direction: column; gap: 12px; }
+  #left-stack > #mission, #left-stack > #weapons, #left-stack > #comms { position: static; width: 100%; max-width: none; }
+  #right-stack { top: 146px; right: 18px; width: 270px; display: flex; flex-direction: column; gap: 12px; }
+  #right-stack #police { position: static; width: 100%; }
+  #crew { padding: 10px 12px; background: #181622e6; border-right: 2px solid #64c9be; }
+  .crew-heading { display: flex; align-items: center; gap: 9px; padding-bottom: 8px; border-bottom: 1px solid #ffffff26; }
+  .crew-heading .portrait { width: 32px; height: 32px; flex-basis: 32px; font-size: 12px; background: #82444d; }
+  .crew-heading strong { display: block; font-size: 11px; color: #fff2da; }
+  .crew-heading small { display: block; margin-top: 3px; font-size: 9px; color: #91d9c9; letter-spacing: .08em; }
+  .crew-ability { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding-top: 9px; font-size: 9px; letter-spacing: .015em; }
+  .crew-ability b { color: #ffe0b7; font-size: 10px; white-space: nowrap; }
+  .crew-ability span { text-align: right; color: #c8d4d0; }
+  #vitals { left: 18px; bottom: 146px; width: 248px; padding: 8px 10px; background: #181622e6; }
+  #vitals > div { position: static; display: grid; grid-template-columns: 54px 1fr 24px; align-items: center; gap: 8px; padding: 3px 0; color: #efe4d6; font-size: 9px; letter-spacing: .06em; background: none; }
+  #vitals i { display: block; width: auto; height: 5px; margin: 0; background: linear-gradient(90deg, var(--vital-color) 0 var(--vital, 100%), #fff2da2e var(--vital, 100%)); }
+  #vitals b { font-size: 10px; text-align: right; color: var(--vital-color); }
+  .health { --vital-color: #95dfac; }
+  .armour { --vital-color: #7ecddd; }
+  .respect { --vital-color: #ffcf70; }
+  #radio { bottom: 230px; }
+  @media (max-height: 620px), (max-width: 900px) {
+    #hud { transform-origin: top left; transform: scale(.78); width: 128.205%; height: 128.205%; }
+    #mission, #weapons { max-width: 40vw; }
+    #comms { max-width: 36vw; }
+  }
   @keyframes pulse { 0% { transform: scale(1); } 30% { transform: scale(1.05); } 100% { transform: scale(1); } }
 </style>
 <section id="intro">
   <article>
     <p class="tag">A coastal crime story</p>
     <h1>LA PERLA</h1>
-    <p>WASD drive or walk · Space handbrake · Shift run · E exit or enter · R radio · G garage · Esc pause</p>
+    <p>WASD drive or walk · Space handbrake · Shift run · E exit or enter · C driving camera · 1–5 weapons · F attack · R radio · G garage · Esc pause</p>
     <nav><button type="button" data-action="new">New Game</button><button type="button" data-action="continue">Continue</button><button type="button" data-action="missions">Missions</button></nav>
   </article>
 </section>
 <div id="hud" aria-label="LA PERLA driving and pursuit HUD">
-  <div id="mission"><small id="file">FIELD FILE</small><span id="objective">Reach the boulevard · find a way through</span></div>
-  <div id="status"><span class="stars"></span><br><span class="cash">$2,450</span><br><span class="heat"></span><br></div><span class="action"></span>
-  <div id="police"><span class="police-status"></span></div>
-  <div class="compass">N · OLD TOWN › PORT</div><canvas id="minimap" width="104" height="104" aria-label="Minimap"></canvas><div class="health">HEALTH <i></i></div><div class="speed">0 KM/H</div><div id="radio">SOL 101.9 · LUZ ON AIR</div>
+  <div id="left-stack">
+  <div id="mission"><small id="file">FIELD FILE</small><span id="objective">Reach the boulevard · find a way through</span><div class="stage-heading"><span id="stage-label"></span><span id="mission-timer"></span></div><div id="stage-bar" role="progressbar" aria-label="Mission stage" aria-valuemin="0"></div><div class="mission-next"><b>NEXT</b><span id="next-objective"></span></div></div>
+  <div id="weapons" role="group" aria-label="Weapons · keys 1 through 5"></div>
+  <div id="comms" hidden><div class="contact"><span class="portrait" role="img"></span><div><strong class="contact-name"></strong><span class="contact-role"></span></div></div><p></p></div>
+  </div>
+  <div id="status"><span class="stars"></span><span class="cash">$2,450</span><span class="heat"></span></div><span class="action"></span>
+  <div id="right-stack"><div id="police"><span class="police-status"></span><b id="dispatch-level"></b><div id="dispatch-list"></div></div><div id="crew" aria-label="Crew abilities"><div class="crew-heading"><span class="portrait" role="img" aria-label="Rosa Delgado portrait">RD</span><div><strong>ROSA DELGADO · FIXER</strong><small>CREW SUPPORT · ON CALL</small></div></div><div id="crew-abilities"></div></div></div>
+  <div id="district"></div>
+  <div class="compass">N · OLD TOWN › PORT</div><canvas id="minimap" width="148" height="148" aria-label="Minimap"></canvas><div id="vitals" aria-label="Player vitals"><div class="health">HEALTH <i role="progressbar" aria-label="Health" aria-valuemin="0" aria-valuemax="100"></i><b id="health-value"></b></div><div class="armour">ARMOUR <i role="progressbar" aria-label="Armour" aria-valuemin="0" aria-valuemax="100"></i><b id="armour-value"></b></div><div class="respect">RESPECT <i role="progressbar" aria-label="Respect" aria-valuemin="0" aria-valuemax="100"></i><b id="respect-value"></b></div></div><div id="speed-panel"><span id="car-name">PERLA GT</span><div><span class="speed">0</span><span class="speed-unit">KM/H</span></div><div class="car-details"><span id="condition"></span><span id="gear"></span></div></div><div id="radio">SOL 101.9 · LUZ ON AIR</div>
 </div>
 <section id="screens" hidden aria-live="polite"><article><small>FIELD REPORT</small><h2></h2><p></p><nav></nav></article></section>
-<section id="dialogue" hidden aria-live="polite"><strong></strong><p></p><nav></nav></section>
+<section id="dialogue" hidden aria-live="polite"><div class="contact"><span class="portrait" role="img"></span><div><strong class="contact-name"></strong><span class="contact-role"></span></div></div><p></p><nav></nav></section>
 <script type="module" src="./src/main.js"></script>
 </html>

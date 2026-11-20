@@ -5,7 +5,7 @@ import { batchStaticParts, beam, box, paint, texture } from './geometry.js';
 export const STEP = 100;
 export const BLOCK = 80;
 export const FIRST_BLOCK = -550;
-const lampGlow = new THREE.MeshBasicMaterial({ color: 0xffd198 });
+const lampGlow = new THREE.MeshStandardMaterial({ color: 0xa7a6a0, emissive: 0xffcf8c, emissiveIntensity: 0 });
 export const LIMIT = 600;
 const districts = {
   oldTown: { wall: '#fff2db', trim: '#947161', glass: '#526b70', name: 'CASA COLONIAL' },
@@ -31,7 +31,14 @@ function districtAt(x, z) {
   return 'coast';
 }
 
-function facades() {
+export function districtNameAt(x, z) {
+  if (x > 635 && Math.abs(z - 48) < 12) return 'Pier';
+  if (x > 485 && z < -245) return 'Casino Row';
+  if (x > 485 && z > 190 && z < 370) return 'Marina';
+  return { oldTown: 'Old Town', port: 'Port Fort', market: 'Market', coast: 'Malecón', towers: 'Glass Towers', hills: 'The Hills' }[districtAt(x, z)];
+}
+
+function facades(lighting) {
   return Object.values(districts).map(({ wall, trim, glass }, index) => {
     const random = createRandom(36 + index);
     const map = texture(128, 256, ctx => {
@@ -65,7 +72,19 @@ function facades() {
         }
       }
     });
-    const side = new THREE.MeshLambertMaterial({ map });
+    const emissiveMap = texture(128, 256, ctx => {
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 128, 256);
+      const lights = createRandom(120 + index);
+      for (let y = 4; y < 252; y += index === 0 ? 64 : 32) for (let x = 7; x < 128; x += 32) {
+        if (lights() < .62) {
+          ctx.fillStyle = lights() < .3 ? '#77cbd0' : '#ffd392';
+          ctx.fillRect(x, y + (index === 0 ? 6 : 0), 18, index === 0 ? 37 : 19);
+          ctx.fillStyle = '#000'; ctx.fillRect(x + 8, y, 2, index === 0 ? 43 : 19);
+        }
+      }
+    });
+    const side = new THREE.MeshLambertMaterial({ map, emissiveMap, emissive: 0xffffff, emissiveIntensity: 0 });
+    lighting.facades.push(side);
     return side;
   });
 }
@@ -159,37 +178,89 @@ export function palm(parent, x, z, height) {
 }
 
 function lamp(parent, x, z, side) {
+  let root = parent; while (root.parent) root = root.parent;
+  root.userData.cityLighting?.lamps.push([x + side * 1.2, z]);
   box(parent, 0x384155, x, .18, z, .45, .36, .45);
   box(parent, 0x384155, x, 2.5, z, .16, 5, .16);
   box(parent, 0x384155, x + side * .65, 5, z, 1.45, .15, .2);
   box(parent, lampGlow, x + side * 1.2, 4.9, z, .55, .12, .23);
 }
 
+function boulevardFixtures(scene) {
+  const shield = new THREE.PlaneGeometry(1.28, 1.28);
+  const crossing = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, transparent: true, alphaTest: .5,
+    map: texture(96, 96, ctx => {
+      ctx.translate(48, 48); ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = '#f9c446'; ctx.fillRect(-31, -31, 62, 62);
+      ctx.strokeStyle = '#393744'; ctx.lineWidth = 3; ctx.strokeRect(-28, -28, 56, 56);
+      ctx.rotate(-Math.PI / 4); ctx.fillStyle = '#302e39';
+      ctx.beginPath(); ctx.arc(2, -15, 4.5, 0, 2 * Math.PI); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(-3, 5); ctx.lineTo(-12, 17);
+      ctx.moveTo(-3, 5); ctx.lineTo(6, 10); ctx.lineTo(9, 19);
+      ctx.moveTo(-1, -7); ctx.lineTo(-10, 0); ctx.moveTo(-1, -7); ctx.lineTo(9, -1); ctx.stroke();
+    }) });
+  const random = createRandom(710);
+  for (const x of [-400, -300, -200, 300, 400, 500, 600]) for (let block = -300; block < 300; block += STEP) {
+    for (const side of [-1, 1]) {
+      const curb = x + side * 10.45;
+      for (const offset of [24, 75]) lamp(scene, curb, block + offset, -side);
+      palm(scene, curb + side * 2.3, block + 36, 7 + random() * 3);
+      palm(scene, curb + side * 2.3, block + 63, 6.5 + random() * 3);
+      const signZ = block + (side > 0 ? 83 : 17), sx = curb + side * .65;
+      box(scene, 0x414d52, sx, 1.51, signZ, .085, 3.02, .085);
+      const sign = new THREE.Mesh(shield, crossing); sign.position.set(sx, 2.65, signZ); scene.add(sign);
+    }
+    const poleX = x - 13.8;
+    const wireSegments = [[14, 44, 6.7, 5.8], [44, 77, 5.8, 5.8], [77, 114, 5.8, 6.7]];
+    box(scene, 0x69504b, poleX, 3.53, block + 14, .225, 7.05, .225, true);
+    box(scene, 0x544a50, poleX, 6.62, block + 14, 1.72, .12, .12);
+    for (const dx of [-.63, .63]) {
+      box(scene, 0xb5a38a, poleX + dx, 6.74, block + 14, .15, .16, .15);
+      // Skip the span after the final pole; the three beam segments read as a sagging cable.
+      if (block < 200) for (const [a, b, ya, yb] of wireSegments) {
+        beam(scene, 0x53414b, new THREE.Vector3(poleX + dx, ya, block + a), new THREE.Vector3(poleX + dx, yb, block + b), .033);
+      }
+    }
+  }
+}
+
 export function buildCity(scene) {
   const firstChild = scene.children.length;
   const random = createRandom(117);
-  const walls = facades();
+  const lighting = scene.userData.cityLighting = { facades: [], lamps: [], lampGlow };
+  const walls = facades(lighting);
   const solids = [];
   const asphalt = texture(128, 128, ctx => {
-    ctx.fillStyle = '#555267';
+    ctx.fillStyle = '#484652';
     ctx.fillRect(0, 0, 128, 128);
     for (let i = 0; i < 4400; i++) {
-      ctx.fillStyle = i % 2 ? '#ffffff14' : '#00000020';
+      ctx.fillStyle = i % 2 ? '#ffffff0c' : '#00000011';
       ctx.fillRect(random() * 128, random() * 128, 1.4, 1.4);
     }
   });
   asphalt.wrapS = asphalt.wrapT = THREE.RepeatWrapping;
   asphalt.repeat.set(120, 120);
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1220, 1220), new THREE.MeshLambertMaterial({ map: asphalt }));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1220, 1220), new THREE.MeshStandardMaterial({ map: asphalt, roughness: .92 }));
+  lighting.road = ground.material;
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
 
-  const dashes = [];
+  const dashes = [], crossings = [], bays = [];
   for (let road = -LIMIT; road <= LIMIT; road += STEP) {
     for (let offset = -LIMIT; offset < LIMIT; offset += STEP) {
       for (let d = 15; d <= 85; d += 7) {
         dashes.push([road, offset + d, .18, 3.3], [offset + d, road, 3.3, .18]);
+      }
+      if ([-400, -300, -200, 300, 400, 500, 600].includes(road) && offset >= -300 && offset < 300) {
+        for (const end of [12, 88]) for (let lane = -5.6; lane <= 5.7; lane += 1.6) {
+          crossings.push([road + lane, offset + end, .69, 2.6]);
+          crossings.push([road + (end === 12 ? 12 : -12), offset + lane, 2.6, .69]);
+        }
+        for (const side of [-1, 1]) for (const at of [25, 42, 58, 75]) {
+          bays.push([road + 7.8 * side, offset + at, .10, 11.8]);
+          bays.push([road + 7.1 * side, offset + at + 5.9, 1.5, .10]);
+        }
       }
       for (const side of [-1, 1]) {
         dashes.push([road + side * 7.9, offset + 50, .12, 80], [offset + 50, road + side * 7.9, 80, .12]);
@@ -198,16 +269,17 @@ export function buildCity(scene) {
   }
   const roadMark = new THREE.PlaneGeometry(1, 1);
   roadMark.rotateX(-Math.PI / 2);
-  const markings = new THREE.InstancedMesh(roadMark, paint(0xffe3a6), dashes.length);
   const transform = new THREE.Object3D();
-  dashes.forEach(([x, z, w, d], i) => {
-    transform.position.set(x, .025, z);
-    transform.scale.set(w, 1, d);
-    transform.updateMatrix();
-    markings.setMatrixAt(i, transform.matrix);
-  });
-  markings.receiveShadow = true;
-  scene.add(markings);
+  for (const [list, color] of [[dashes, 0xe2bd78], [crossings, 0xe6d5c1], [bays, 0xbeb3af]]) {
+    const markings = new THREE.InstancedMesh(roadMark, paint(color), list.length);
+    list.forEach(([x, z, w, d], i) => {
+      transform.position.set(x, .025, z);
+      transform.scale.set(w, 1, d);
+      transform.updateMatrix();
+      markings.setMatrixAt(i, transform.matrix);
+    });
+    markings.receiveShadow = true; scene.add(markings);
+  }
 
   for (let x = FIRST_BLOCK; x < LIMIT; x += STEP) {
     for (let z = FIRST_BLOCK; z < LIMIT; z += STEP) {
@@ -359,9 +431,11 @@ export function buildCity(scene) {
   // Set the west tower back ten units so its podium leaves the curb lane unobstructed.
   for (const [x, z, height] of [[380, 25, 58], [423, 45, 46]]) {
     const tower = new THREE.Group();
-    const glass = new THREE.MeshStandardMaterial({ color: 0x243f55, metalness: .42, roughness: .26 });
+    const glass = new THREE.MeshLambertMaterial({ color: 0x397783, map: walls[4].map,
+      emissiveMap: walls[4].emissiveMap, emissive: 0xffffff, emissiveIntensity: 0 });
+    lighting.facades.push(glass);
     box(tower, glass, 0, height / 2, 0, 17, height, 17, true);
-    box(tower, 0x172735, 0, 2, 0, 23, 4, 23, true);
+    box(tower, 0x31525d, 0, 2, 0, 23, 4, 23, true);
     for (let y = 5; y < height - 2; y += 5) {
       for (const side of [-1, 1]) {
         box(tower, 0x9bd2d4, 0, y, side * 8.58, 12, .35, .12);
@@ -374,10 +448,27 @@ export function buildCity(scene) {
       box(tower, neon, side * 8.62, height * .52, 8.62, .14, height - 8, .14);
       box(tower, neon, 0, height + .9, side * 9.35, 18.7, .14, .14);
     }
+    const ad = texture(512, 192, ctx => {
+      ctx.fillStyle = x === 380 ? '#087d82' : '#c85e56'; ctx.fillRect(0, 0, 512, 192);
+      ctx.fillStyle = '#f5d69d'; ctx.fillRect(16, 16, 480, 160);
+      ctx.fillStyle = x === 380 ? '#087d82' : '#883d50'; ctx.fillRect(22, 22, 468, 148);
+      ctx.fillStyle = '#ffe3a8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = 'bold 64px sans-serif'; ctx.fillText(x === 380 ? 'LA PERLA' : 'SOL DE ORO', 256, 78);
+      ctx.font = 'bold 24px sans-serif'; ctx.fillText(x === 380 ? 'RADIO 101.9 · VIVE LA COSTA' : 'JUGO NATURAL · SABOR DEL CARIBE', 256, 130);
+      ctx.fillStyle = '#f5c75e';
+      for (let i = 0; i < 9; i++) ctx.fillRect(46 + i * 52, 150, 26, 4);
+    });
+    ad.colorSpace = THREE.SRGBColorSpace;
+    const adPanel = new THREE.Mesh(new THREE.PlaneGeometry(18.5, 6.4), new THREE.MeshBasicMaterial({ map: ad, side: THREE.DoubleSide }));
+    adPanel.position.set(0, 5.2, -11.72);
+    adPanel.rotation.y = Math.PI;
+    tower.add(adPanel);
+    box(tower, 0xe8ca97, 0, 1.25, -11.65, 20, .4, .18);
     solids.push({ x, z, w: 8.5, d: 8.5, height });
     tower.position.set(x, 0, z);
     scene.add(tower);
   }
+  boulevardFixtures(scene);
   // Batch immutable city meshes by geometry/material and neighborhood.
   batchStaticParts(scene, scene.children.slice(firstChild), 150);
   return solids;

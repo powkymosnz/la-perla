@@ -112,7 +112,7 @@ export function createWorld(scene) {
       const offset = (z > target.z ? 1 : -1) * (22 + i * 8);
       const heading = offset > 0 ? Math.PI : 0;
       root.position.set(x, 0, THREE.MathUtils.clamp(z + offset, -LIMIT, LIMIT));
-      police.push({ root, model, speed: 16 + i * 2, heading, distance: Infinity, contact: 0 });
+      police.push({ name: ['TARPON-11', 'MARLIN-3', 'GULL-1'][i], root, model, speed: 16 + i * 2, heading, distance: Infinity, contact: 0 });
     }
   }
   function ensureHelicopter() {
@@ -207,7 +207,10 @@ export function createWorld(scene) {
           unit.heading += turn * Math.min(1, dt * 9);
           delta.clampLength(0, unit.speed * dt);
           const next = position.clone().add(delta);
-          if (!blocked(next.x, next.z, 1.2)) position.copy(next);
+          if (!blocked(next.x, next.z, 1.2)) {
+            position.copy(next);
+            unit.model.roll(delta.length(), THREE.MathUtils.clamp(turn, -.32, .32));
+          }
         }
         unit.root.rotation.y = unit.heading;
         unit.model.flash(performance.now() / 1000);
@@ -322,6 +325,7 @@ export function createWorld(scene) {
     get wanted() { return wanted; }, get heat() { return heat; }, get crimeFlash() { return crimeFlash; },
     get thefts() { return thefts; }, get unseen() { return unseen; },
 get police() { return police; }, get helicopter() { return helicopter; },
+    get roadblock() { return roadblock; },
     get spikes() { return spikeStrip; }, get traffic() { return traffic; }, get pedestrians() { return pedestrians; },
     get garagePosition() { return garageSpot; }, nearGarage(position) { return position.distanceTo(garageSpot) < 22; },
     resetMarketCar() {

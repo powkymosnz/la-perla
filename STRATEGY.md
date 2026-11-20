@@ -6,8 +6,7 @@ top 10 ($38) if genuinely strong and playable. Deadline 24 Nov 22:00 WIB.
 - Title: **LA PERLA** — "A coastal crime story" (tagline on the start screen).
 - City: **LA PERLA**, a Cartagena-inspired coastal city with a walled colonial old
   town and balconies, a mural-covered street-art quarter, fruit stalls and domino
-  players in plazas, a port fort, and glass towers beside the old town. Fixed golden
-  hour (sun low, long shadows, pink-orange sky, neon starting to glow).
+  players in plazas, a port fort, and glass towers beside the old town. Selectable midday, golden hour and night, with independent clear/rain weather.
 - Districts (6): Malecón (beachfront boulevard), Old Town (tight streets),
   Marina & Port (containers, cranes), Casino Row (neon, hotels), The Hills
   (villas, winding roads), Industrial (warehouses, docks).
@@ -26,7 +25,7 @@ top 10 ($38) if genuinely strong and playable. Deadline 24 Nov 22:00 WIB.
 - Grid city ~1.2 km across: blocks, roads with lane markings, sidewalks,
   palm trees, streetlights, beach + ocean on one edge, pier, ferris wheel
   (landmark), neon signs (canvas textures), parked cars, props.
-- Day is fixed at golden hour; fog + warm hemisphere light + sun flare.
+- Time/weather presets drive sky, fog, sun direction, city lights, headlights, rain and wet roads.
 - All art procedural: canvas-generated textures (building faces, signs,
   road), low-poly meshes, no downloaded images/fonts/sounds.
 
@@ -277,3 +276,113 @@ Start with road-bound police pursuit, vehicle contact separation, and a city min
   check and one v2 submission attempt follow this build log; recording
   `01a1f375-553b-7631-831c-14aef174d0bd` is this Day 5 run, alongside the three
   supplied Day 1/3/4 recordings. No push, branch switch or Day 6 work performed.
+
+### Day 6 — Screenshot density and district polish (2026-11-19)
+
+- Filled the previously blank dark podiums at the glass towers with two original,
+  locally generated La Perla/radio and Sol de Oro/juice ads; changed tower glass
+  to a lighter lit material so the modern district reads as glass rather than black
+  blocks. Expanded the market forecourt with four shade canopies, produce crates,
+  five extra fruit carts and visitor clusters around the stalls.
+- Added compact dark backing to radio, action, compass and speed HUD elements for
+  legibility over bright roads, buildings and sea. Captured four busy Playwright
+  frames for Old Town, Market, Port Fort and Glass Towers with traffic, pedestrians
+  and active police response; the towers frame also includes Vega's helicopter.
+  All new artwork is procedural and the game still uses local files only.
+
+### Day 7 — Vehicle silhouettes and busy boulevards (2026-11-19)
+
+- Rebuilt all six vehicle silhouettes around open wheel arches, full glazing and separate lamps. Every rendered civilian keeps all four animated tires and complete body geometry at every draw distance. Ground contact shadows anchor the cars even on software renderers; the coupe has a red low body and spoiler, and interceptors have white doors, POLICE markings and flashing light bars.
+- Increased boulevard traffic and sidewalk crowds, added palms, lamps, crossing signs, curb paint and utility wires, and lowered the chase camera with clearance checks around walls. Layered procedural clouds and a hazy, distant skyline frame the low sunset without external assets.
+
+### Day 8 — Dense HUD and action screenshots (2026-11-19)
+
+- Read the supplied leaderboard analysis and the external game-ui-ux, game-feel,
+  and camera-systems skills in place. Kept the existing coastal case-file palette
+  and chase camera; stacked the mission, weapons and contact panels at the left
+  edge so longer objectives cannot overlap them or cover the player car.
+- Added five functional 1–5 weapon slots: Fists, Pistol, SMG, Shotgun and Carbine,
+  with active selection, finite ammunition, distinct ranges/cooldowns, empty-ammo
+  handling and session reset. On foot, F consumes a real round; switching also
+  works while driving. Browser proof: pistol 072 → 071 and all five keys select.
+- Dispatch now names TARPON-11, MARLIN-3, GULL-1, AIR ONE and each actual roadblock
+  vehicle. Distances come from current world positions; pursuit, search, contact
+  ramming, spotlight and roadblock states, unit count and wanted level are live.
+- Mission conversations and live radio calls share procedural colored initial
+  portraits, full contact names and roles. Enlarged cash and speed; added PERLA GT,
+  actual condition percentage, forward/reverse/neutral gear, mission stage bar,
+  remaining/elapsed timer, NEXT objective, position-based district and advancing
+  in-game clock. Dark translucent backing and cached 10 Hz updates keep the HUD
+  readable without rewriting unchanged text. Free drive clears stale mission timers.
+- Replaced all four screenshots through Playwright MCP with unedited 1280×720
+  JPEGs showing four-star patrol cars and a fully visible helicopter in each:
+  1-start.jpg / Old Town / 111 KM/H / 170,039 bytes;
+  2-play.jpg / Market / 115 KM/H / 167,279 bytes;
+  3-end.jpg / Port Fort / 116 KM/H / 157,314 bytes;
+  4-chase.jpg / Glass Towers / 114 KM/H / 169,172 bytes.
+  Used the existing test-only world hooks to stage the four districts and pursuit
+  positions, then accelerated through actual car physics and held W during capture.
+  No speedometer values or screenshot pixels were fabricated. Inspected each final
+  image and fully decoded all four JPEGs; every file is below 256 KiB.
+- Final regression: `node tests/day3.mjs`, `node tests/day4.mjs`,
+  `node tests/day5.mjs` and the added `node tests/day8.mjs` all PASS. Day 8 covers
+  selection/ammo/cooldowns, mission progression, dispatch distances/tactics and
+  roadblock transforms, district/clock formatting and driving gears. Playwright
+  reports zero console errors across the session and only localhost asset requests;
+  the ordinary keyboard drive exceeded 65 KM/H before screenshot staging.
+
+
+### Day 9 — Weather and time-of-day variety (2026-11-19)
+
+- Added independent noon/golden/night and clear/rain scene state in environment.js.
+  The same settings are available during normal play via Esc → Time & weather.
+  Noon raises the sun for short shadows and a blue sky; golden preserves the warm
+  sunset; night has a dark star/moon sky, cool city fill, emissive window masks,
+  streetlamp pools and two real headlight spotlights plus projected road beams.
+  Existing red vehicle tail lamps remain visible. HUD backing stays readable.
+- Rain darkens clouds/fog, lowers direct sun, changes asphalt roughness/metalness,
+  adds procedural broken reflection streaks, falling line particles and road
+  splash rings. Fixed pools/instance buffers bound the cost; there are no external
+  assets, additional shadow maps, or scene reflection render passes.
+- Test URL time/weather choices require ?test; invalid choices fall back safely.
+  The QA hook and its condition snapshot are frozen, with read-only condition
+  diagnostics and no condition setter exposed. Normal mode has no QA hook and
+  ignores staging parameters. The existing world references still support QA staging.
+- Replaced all four JPEGs via Playwright MCP while holding W and accelerating
+  through actual driving physics. Test-only placement clears the capture lane and
+  frames the live police/helicopter; HUD speed and pixels are not fabricated.
+  Each 1280×720 image contains police cars and a helicopter:
+  - 1-start.jpg: Old Town, golden hour / clear, visible 96 KM/H, 132,023 bytes.
+  - 2-play.jpg: Market, midday / rain, visible 96 KM/H, 135,789 bytes.
+  - 3-end.jpg: Port Fort, night / clear, visible 96 KM/H, 108,957 bytes.
+  - 4-chase.jpg: Glass Towers, midday / clear, visible 94 KM/H, 151,562 bytes.
+  All four were visually inspected and fully decoded; each is below 256 KiB.
+- Final Node regression run: day3, day4, day5, day8 and new day9 all PASS.
+  Day 9 covers six combinations, actual sky uniforms/sun elevation, illuminated
+  facade materials, light visibility/spotlights, dry/wet asphalt, moving rain,
+  immutable snapshots, atomic validation and test-only URL selection.
+- Browser driving covered all six combinations with zero console errors. Normal
+  keyboard driving exceeded 65 KM/H at night; additional golden-rain/night-rain
+  probes each rendered eight frames, advanced the car and moved rain particles.
+  Normal-mode reload confirmed the QA hook is absent. The first server process
+  stopped before that reload; restarting the local server completed the check.
+- Official kit check was run outside the Codex sandbox from the kit directory:
+  initial committed baseline 5 passed / 0 failed; it explicitly excluded dirty
+  files. The same command is rerun against the Day 9 commit after committing.
+  No branch switch, push or competition submission.
+
+### Day 10 — Camera angles and varied gameplay frames (2026-11-19)
+
+- Added five driving views selected with C: chase, hood, side tracking, low
+  front 3/4 and high wide. The HUD briefly names the active view. The rig probes
+  buildings and the ground before rendering and preserves the on-foot view so
+  walking and aiming remain predictable. The frozen QA hook exposes preset
+  selection and pose diagnostics only with `?test`.
+- Captured four 1280×720 Playwright JPEGs with live HUD speed and four-star
+  response: First Fare in Old Town at golden hour (low front, 98 KM/H),
+  Borrowed Wheels in the rainy Market (side, 73 KM/H), Roadblock at Port
+  Fort at night (high wide, 98 KM/H) and Air Support at the Glass Towers
+  at midday (hood, 98 KM/H). Staged the actors through the QA hook and
+  used actual driving physics for the displayed speed.
+- Day 3, 4, 5, 8, 9 and 10 Node suites passed. Playwright cycled all five
+  views while driving and confirmed that ordinary play has no QA hook.
